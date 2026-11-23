@@ -33,6 +33,11 @@ export default function Privacidad() {
         </li>
       </ul>
       <p>No pedimos registro, no usamos cookies de seguimiento y no creamos perfiles.</p>
+      <p>
+        Si pulsas “Guardar en este navegador”, el informe se guarda solo en tu navegador; nosotros
+        no lo recibimos. “Enviar por email” abre tu propio programa de correo con el resumen: el
+        email no pasa por nuestros servidores.
+      </p>
 
       <h2>Finalidad y base legal</h2>
       <p>

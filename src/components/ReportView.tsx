@@ -2,15 +2,30 @@
 
 import { useEffect, useState } from 'react';
 import { sortBySeverity } from '@/lib/findings';
-import { formatDate, summaryText, type ReportData } from '@/lib/report';
+import { formatDate, mailtoHref, summaryText, type ReportData } from '@/lib/report';
 import { GRADE_LABELS, scoreReport } from '@/lib/scoring';
 import { CATEGORY_LABELS, type Category } from '@/lib/types';
 import { GradeBadge } from './Badges';
+import { ComparisonTable, CompetitorCompare } from './Comparison';
 import { FindingItem } from './FindingItem';
 
 const CATEGORIES = Object.keys(CATEGORY_LABELS) as Category[];
 
-export function ReportView({ report }: { report: ReportData }) {
+export type SaveState = 'unavailable' | 'unsaved' | 'saved' | 'error';
+
+export function ReportView({
+  report,
+  saveState = 'unavailable',
+  onSave,
+  previous = null,
+}: {
+  report: ReportData;
+  /** Si el informe está guardado en el historial del navegador. */
+  saveState?: SaveState;
+  onSave?: () => void;
+  /** Informe guardado anterior del mismo dominio, para ver la evolución. */
+  previous?: ReportData | null;
+}) {
   const { global, categories } = scoreReport(report.findings);
   const [copied, setCopied] = useState<'idle' | 'ok' | 'error'>('idle');
 
@@ -80,15 +95,50 @@ export function ReportView({ report }: { report: ReportData }) {
           >
             Copiar resumen
           </button>
+          <a
+            href={mailtoHref(report)}
+            className="rounded-lg border border-slate-300 px-4 py-2 text-center font-semibold hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
+          >
+            Enviar por email
+          </a>
+          {saveState !== 'unavailable' && (
+            <button
+              type="button"
+              onClick={onSave}
+              disabled={saveState === 'saved'}
+              className="rounded-lg border border-slate-300 px-4 py-2 font-semibold hover:bg-slate-100 disabled:cursor-default disabled:opacity-70 dark:border-slate-700 dark:hover:bg-slate-800"
+            >
+              {saveState === 'saved' ? 'Guardado ✓' : 'Guardar en este navegador'}
+            </button>
+          )}
           <p
             role="status"
             className="min-h-5 text-center text-sm text-slate-600 dark:text-slate-400"
           >
             {copied === 'ok' && 'Resumen copiado'}
             {copied === 'error' && 'No se ha podido copiar'}
+            {saveState === 'error' && 'No se ha podido guardar'}
           </p>
         </div>
       </header>
+
+      {previous && (
+        <section
+          aria-labelledby="evolucion-titulo"
+          className="rounded-2xl border border-slate-200 p-6 dark:border-slate-800"
+        >
+          <h3 id="evolucion-titulo" className="mb-3 text-xl font-semibold">
+            Evolución
+          </h3>
+          <ComparisonTable
+            a={report}
+            b={previous}
+            labelA="Ahora"
+            labelB={`Antes (${formatDate(previous.scannedAt)})`}
+            caption={`Notas de ${report.domain} frente al último informe guardado`}
+          />
+        </section>
+      )}
 
       <ul className="grid gap-4 sm:grid-cols-2" aria-label="Nota por categoría">
         {CATEGORIES.map((c) => {
@@ -134,6 +184,8 @@ export function ReportView({ report }: { report: ReportData }) {
           </section>
         );
       })}
+
+      <CompetitorCompare key={`${report.domain}-${report.scannedAt}`} report={report} />
 
       {report.notices.length > 0 && (
         <aside className="rounded-xl bg-slate-100 p-4 text-sm text-slate-700 dark:bg-slate-900 dark:text-slate-300">

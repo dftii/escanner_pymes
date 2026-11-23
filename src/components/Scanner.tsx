@@ -1,10 +1,20 @@
 'use client';
 
-import { useId, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
+import {
+  browserStorage,
+  clearHistory,
+  isSaved,
+  loadHistory,
+  previousReport,
+  removeReport,
+  saveReport,
+} from '@/lib/history';
 import type { ReportData } from '@/lib/report';
-import { readEventStream } from '@/lib/scanStream';
+import { requestScan } from '@/lib/scanClient';
 import { CATEGORY_LABELS, type Category } from '@/lib/types';
-import { ReportView } from './ReportView';
+import { HistoryList } from './History';
+import { ReportView, type SaveState } from './ReportView';
 
 const CATEGORIES = Object.keys(CATEGORY_LABELS) as Category[];
 
@@ -21,6 +31,22 @@ export function Scanner() {
   const consentId = useId();
   const errorId = useId();
 
+  // El historial se lee tras montar: en el servidor no hay localStorage.
+  const [history, setHistory] = useState<ReportData[]>([]);
+  const [storageOk, setStorageOk] = useState(false);
+  const [saveError, setSaveError] = useState(false);
+  useEffect(() => {
+    const storage = browserStorage();
+    setStorageOk(!!storage);
+    setHistory(loadHistory(storage));
+  }, []);
+
+  function show(report: ReportData) {
+    setSaveError(false);
+    setState({ phase: 'done', report });
+    requestAnimationFrame(() => resultsRef.current?.focus());
+  }
+
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
@@ -29,39 +55,32 @@ export function Scanner() {
     setState({ phase: 'scanning', domain, done: [] });
 
     try {
-      const res = await fetch('/api/scan', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ domain, consent }),
-      });
-      if (!res.ok || !res.body) {
-        const body = (await res.json().catch(() => null)) as {
-          error?: { message?: string };
-        } | null;
-        throw new Error(body?.error?.message ?? 'No hemos podido analizar el dominio.');
-      }
-      let finished = false;
-      await readEventStream(res.body, (e) => {
-        if (e.type === 'category') {
-          setState((s) => (s.phase === 'scanning' ? { ...s, done: [...s.done, e.category] } : s));
-        } else if (e.type === 'done') {
-          finished = true;
-          setState({ phase: 'done', report: e.result });
-          requestAnimationFrame(() => resultsRef.current?.focus());
-        } else {
-          throw new Error(e.message);
-        }
-      });
-      if (!finished) throw new Error('El análisis se ha interrumpido. Inténtalo de nuevo.');
+      const report = await requestScan(domain, consent, (category) =>
+        setState((s) => (s.phase === 'scanning' ? { ...s, done: [...s.done, category] } : s)),
+      );
+      show(report);
     } catch (error) {
       setState({
         phase: 'error',
-        message:
-          error instanceof Error && error.message !== 'Failed to fetch'
-            ? error.message
-            : 'No hemos podido conectar con el servidor. Revisa tu conexión.',
+        message: error instanceof Error ? error.message : 'No hemos podido analizar el dominio.',
       });
     }
+  }
+
+  const current = state.phase === 'done' ? state.report : null;
+  const saveState: SaveState = !storageOk
+    ? 'unavailable'
+    : saveError
+      ? 'error'
+      : current && isSaved(history, current)
+        ? 'saved'
+        : 'unsaved';
+
+  function onSave() {
+    if (!current) return;
+    const list = saveReport(browserStorage(), current);
+    if (list) setHistory(list);
+    setSaveError(!list);
   }
 
   const scanning = state.phase === 'scanning';
@@ -167,10 +186,27 @@ export function Scanner() {
         )}
       </div>
 
-      {state.phase === 'done' && (
+      {current && (
         <div ref={resultsRef} tabIndex={-1} className="outline-none">
-          <ReportView report={state.report} />
+          <ReportView
+            report={current}
+            saveState={saveState}
+            onSave={onSave}
+            previous={previousReport(history, current)}
+          />
         </div>
+      )}
+
+      {!scanning && (
+        <HistoryList
+          items={history}
+          onOpen={show}
+          onRemove={(r) => setHistory(removeReport(browserStorage(), r))}
+          onClear={() => {
+            clearHistory(browserStorage());
+            setHistory([]);
+          }}
+        />
       )}
     </div>
   );

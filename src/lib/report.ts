@@ -55,3 +55,70 @@ export function summaryText(report: ReportData): string {
   ];
   return lines.join('\n');
 }
+
+/** Largo máximo del enlace mailto: algunos clientes de correo cortan a partir de ~2000. */
+export const MAILTO_MAX = 1900;
+
+/**
+ * Enlace `mailto:` con el resumen del informe, para enviarlo desde el propio
+ * programa de correo del usuario (no pasa por nuestro servidor). Si el resumen
+ * es muy largo, se recorta y se avisa de que el PDF tiene el informe completo.
+ */
+export function mailtoHref(report: ReportData, to = ''): string {
+  const subject = `Informe de seguridad de ${report.domain}`;
+  const head = `mailto:${encodeURIComponent(to.trim())}?subject=${encodeURIComponent(subject)}&body=`;
+  const full = summaryText(report);
+  const encoded = encodeURIComponent(full);
+  if (head.length + encoded.length <= MAILTO_MAX) return head + encoded;
+
+  const tail = '\n…\n(Resumen recortado: descarga el PDF para ver el informe completo.)';
+  const budget = MAILTO_MAX - head.length - encodeURIComponent(tail).length;
+  const lines = full.split('\n');
+  let body = '';
+  for (const line of lines) {
+    const next = body ? `${body}\n${line}` : line;
+    if (encodeURIComponent(next).length > budget) break;
+    body = next;
+  }
+  return head + encodeURIComponent(body + tail);
+}
+
+export type ComparisonRow = {
+  key: Category | 'global';
+  label: string;
+  a: { grade: Grade | null; score: number | null };
+  b: { grade: Grade | null; score: number | null };
+  /** Quién sale mejor: `a`, `b`, `tie` o `null` si falta alguna nota. */
+  better: 'a' | 'b' | 'tie' | null;
+};
+
+/** Compara las notas de dos informes, por categoría y en global. */
+export function compareReports(a: ReportData, b: ReportData): ComparisonRow[] {
+  const sa = scoreReport(a.findings);
+  const sb = scoreReport(b.findings);
+  const row = (
+    key: ComparisonRow['key'],
+    label: string,
+    x: ComparisonRow['a'],
+    y: ComparisonRow['b'],
+  ): ComparisonRow => ({
+    key,
+    label,
+    a: { grade: x.grade, score: x.score },
+    b: { grade: y.grade, score: y.score },
+    better:
+      x.score === null || y.score === null
+        ? null
+        : x.score === y.score
+          ? 'tie'
+          : x.score > y.score
+            ? 'a'
+            : 'b',
+  });
+  return [
+    row('global', 'Nota global', sa.global, sb.global),
+    ...(Object.keys(CATEGORY_LABELS) as Category[]).map((c) =>
+      row(c, CATEGORY_LABELS[c], sa.categories[c], sb.categories[c]),
+    ),
+  ];
+}

@@ -109,6 +109,13 @@ Con `200` la respuesta es `application/x-ndjson`, con un evento JSON por línea 
 {"type":"done","result":{"domain","scannedAt","finalUrl","durationMs","findings","notices"}}
 ```
 
+## Informe
+
+- **Descargar PDF** (vista imprimible) y **Copiar resumen**.
+- **Enviar por email**: enlace `mailto:` con el resumen (`mailtoHref`, recortado a ~1900 caracteres). Abre el programa de correo del usuario; no hay envío desde el servidor ni proveedor de correo.
+- **Historial** (`src/lib/history.ts`): con "Guardar en este navegador" el informe completo se guarda en `localStorage` (máximo 20; si se llena, se descartan los más antiguos). Se pueden volver a abrir o borrar, y al ver un informe de un dominio con otro anterior guardado aparece la tabla **Evolución**.
+- **Compárate con otra web**: analiza un segundo dominio (cuenta para el límite y pide el mismo consentimiento) y muestra las notas lado a lado (`compareReports`).
+
 ## Puntuación
 
 `src/lib/scoring.ts` da una nota de la A a la F por categoría y otra global:
@@ -123,7 +130,7 @@ Con `200` la respuesta es `application/x-ndjson`, con un evento JSON por línea 
 
 - **CSP estricta con nonce** por petición (`src/middleware.ts`, `src/lib/csp.ts`): `script-src 'self' 'nonce-…' 'strict-dynamic'` sin `unsafe-inline`, `frame-ancestors 'none'` y `object-src 'none'`. La API lleva `default-src 'none'`.
 - HSTS, `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy` y sin `X-Powered-By`.
-- Sin cookies, sin `localStorage` y sin scripts de terceros.
+- Sin cookies ni scripts de terceros. `localStorage` solo si el usuario pulsa "Guardar en este navegador" (historial local, exento de consentimiento por el art. 22.2 LSSI).
 - `tests/csp.test.ts` y `tests/selfscan.test.ts` comprueban que la web aprueba sus propios checks de cabeceras y de RGPD.
 
 > **Antes de publicar:** define `LEGAL_NOMBRE`, `LEGAL_NIF`, `LEGAL_DOMICILIO` y `LEGAL_EMAIL` en Vercel. Los datos del titular no se guardan en el repositorio; mientras falte alguno, `/aviso-legal` y `/privacidad` lo muestran resaltado en amarillo. La mención a Upstash aparece sola si `UPSTASH_REDIS_REST_URL` está definida. Tras cambiar las variables, vuelve a desplegar.
