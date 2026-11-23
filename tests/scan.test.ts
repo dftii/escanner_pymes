@@ -145,3 +145,79 @@ describe('runScan con progreso', () => {
     expect(result.findings.length).toBeGreaterThan(10);
   });
 });
+
+describe('runScan con navegador (fase 2)', () => {
+  const home = {
+    ...page('https://minegocio.es/'),
+    setCookies: ['PHPSESSID=abc; Path=/'],
+    redirects: [{ url: 'http://minegocio.es/', status: 301, setCookies: ['lang=es'] }],
+  };
+  const base = { now: () => NOW, dns, probe, fetch: fetchFrom({ 'https://minegocio.es/': home }) };
+
+  it('añade privacy.cookies_js sin repetir las cookies del servidor', async () => {
+    const domains: string[] = [];
+    const result = await runScan('minegocio.es', {
+      ...base,
+      browser: async (domain) => {
+        domains.push(domain);
+        return {
+          finalUrl: 'https://minegocio.es/',
+          cookies: [
+            { name: 'PHPSESSID', domain: 'minegocio.es' },
+            { name: 'lang', domain: 'minegocio.es' },
+            { name: '_fbp', domain: '.minegocio.es' },
+          ],
+          requests: [],
+          blocked: 0,
+        };
+      },
+    });
+    expect(domains).toEqual(['minegocio.es']);
+    const f = result.findings.find((x) => x.id === 'privacy.cookies_js');
+    expect(f?.status).toBe('fail');
+    expect(f?.detail).toContain('_fbp');
+    expect(f?.detail).not.toContain('PHPSESSID');
+  });
+
+  it('si el navegador falla, sale como error y el resto de RGPD sigue', async () => {
+    const result = await runScan('minegocio.es', {
+      ...base,
+      browser: async () => {
+        throw new ScanError('network', 'navegador ocupado');
+      },
+    });
+    expect(result.findings.find((x) => x.id === 'privacy.cookies_js')?.status).toBe('error');
+    expect(result.findings.find((x) => x.id === 'privacy.cookies')?.status).toBe('ok');
+  });
+
+  it('si la web no carga, analiza las cookies del navegador sin excluir ninguna', async () => {
+    const result = await runScan('minegocio.es', {
+      now: () => NOW,
+      dns,
+      probe,
+      fetch: fetchFrom({}),
+      browser: async () => ({
+        finalUrl: 'https://minegocio.es/',
+        cookies: [{ name: '_ga', domain: '.minegocio.es' }],
+        requests: [],
+        blocked: 0,
+      }),
+    });
+    expect(result.findings.find((x) => x.id === 'privacy.cookies_js')?.status).toBe('fail');
+  });
+
+  it('sin ENABLE_HEADLESS no se lanza el navegador', async () => {
+    const result = await runScan('minegocio.es', base);
+    expect(result.findings.some((x) => x.id === 'privacy.cookies_js')).toBe(false);
+  });
+
+  it('con ENABLE_HEADLESS=true se usa el navegador por defecto (null lo desactiva)', async () => {
+    process.env.ENABLE_HEADLESS = 'true';
+    try {
+      const result = await runScan('minegocio.es', { ...base, browser: null });
+      expect(result.findings.some((x) => x.id === 'privacy.cookies_js')).toBe(false);
+    } finally {
+      delete process.env.ENABLE_HEADLESS;
+    }
+  });
+});

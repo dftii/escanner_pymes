@@ -66,6 +66,7 @@ export const FINDING_WEIGHTS: Record<string, number> = {
   'email.dkim': 1.5,
   'email.exposed': 1,
   'privacy.cookies': 3,
+  'privacy.cookies_js': 3,
   'privacy.trackers': 3,
   'privacy.banner': 3,
   'privacy.legal_notice': 2,

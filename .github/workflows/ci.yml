@@ -34,6 +34,9 @@ jobs:
       - name: Comprobación de tipos
         run: npm run typecheck
 
+      - name: Instalar Chromium (tests del navegador headless)
+        run: npx playwright-core install --with-deps --only-shell chromium
+
       - name: Tests con cobertura
         run: npm run test:coverage
 
