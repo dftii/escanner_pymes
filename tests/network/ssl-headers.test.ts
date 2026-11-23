@@ -53,7 +53,10 @@ describe('checkSsl con webs reales', () => {
 
   it('untrusted-root.badssl.com: raíz no reconocida', async () => {
     const f = byId(await checkSsl('untrusted-root.badssl.com'));
-    expect(f['ssl.untrusted'] ?? f['ssl.chain']).toMatchObject({ status: 'fail' });
+    const summary = Object.values(f)
+      .map((x) => `${x.id}=${x.status}`)
+      .join(', ');
+    expect(f['ssl.untrusted'] ?? f['ssl.chain'], summary).toMatchObject({ status: 'fail' });
   });
 });
 

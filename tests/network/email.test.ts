@@ -38,11 +38,11 @@ describe('checkEmailDns con DNS real', () => {
 });
 
 describe('runScan con correo', () => {
-  it('badssl.com: informe con las tres categorías en menos de 20 s', async () => {
+  it('badssl.com: informe con la categoría de correo en menos de 20 s', async () => {
     const result = await runScan('badssl.com');
     expect(result.durationMs).toBeLessThan(20_000);
-    expect(new Set(result.findings.map((f) => f.category))).toEqual(
-      new Set(['ssl', 'headers', 'email']),
+    expect([...new Set(result.findings.map((f) => f.category))]).toEqual(
+      expect.arrayContaining(['ssl', 'headers', 'email']),
     );
     expect(result.findings.find((f) => f.id === 'email.exposed')?.status).not.toBe('error');
   });

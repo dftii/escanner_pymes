@@ -51,13 +51,26 @@ export async function checkEmailExposure(
   home: SafeResponse,
   deps: ExposureDeps = {},
 ): Promise<Finding> {
-  const fetcher = deps.fetch ?? safeFetch;
+  return analyzeEmailExposure(await fetchRelatedPages(home, deps.fetch));
+}
+
+/**
+ * La home y hasta 3 páginas enlazadas de contacto, aviso legal o privacidad.
+ * Las páginas que fallan se omiten. Lo comparten los checks de correo y RGPD.
+ */
+export async function fetchRelatedPages(
+  home: SafeResponse,
+  fetcher: typeof safeFetch = safeFetch,
+): Promise<SafeResponse[]> {
   const extra = findContactPages(home.body, home.url, 3);
   const pages = await Promise.allSettled(
     extra.map((url) => fetcher(url, { acceptInvalidCert: true, maxBytes: 1024 * 1024 })),
   );
+  return [home, ...pages.flatMap((p) => (p.status === 'fulfilled' ? [p.value] : []))];
+}
 
-  const scanned = [home, ...pages.flatMap((p) => (p.status === 'fulfilled' ? [p.value] : []))];
+/** Emails visibles en las páginas ya descargadas. Función pura. */
+export function analyzeEmailExposure(scanned: readonly SafeResponse[]): Finding {
   const emails = new Set<string>();
   const where: Record<string, string[]> = {};
   let protectedCount = 0;

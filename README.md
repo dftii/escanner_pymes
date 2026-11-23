@@ -82,12 +82,12 @@ Sin Upstash el límite (5 análisis cada 10 minutos por IP) se guarda en la memo
 
 `POST /api/scan` con `{ "domain": "minegocio.es", "consent": true }`.
 
-| Respuesta | Cuándo                                                      |
-| --------- | ----------------------------------------------------------- |
-| `200`     | `{ domain, scannedAt, finalUrl, durationMs, findings }`     |
-| `400`     | Dominio no válido, IP, dominio interno o sin consentimiento |
-| `404`     | El dominio no existe                                        |
-| `429`     | Límite superado (cabecera `Retry-After`)                    |
+| Respuesta | Cuándo                                                           |
+| --------- | ---------------------------------------------------------------- |
+| `200`     | `{ domain, scannedAt, finalUrl, durationMs, findings, notices }` |
+| `400`     | Dominio no válido, IP, dominio interno o sin consentimiento      |
+| `404`     | El dominio no existe                                             |
+| `429`     | Límite superado (cabecera `Retry-After`)                         |
 
 Los errores siempre tienen la forma `{ error: { code, message } }`, con `message` en español y listo para mostrar.
 
@@ -121,6 +121,22 @@ Cada hallazgo tiene `id`, `category`, `status` (`ok`, `warning`, `fail`, `info`,
 
 En `email.exposed` se tiene en cuenta que la LSSI obliga a publicar un email de contacto: un buzón genérico del dominio (info@, contacto@) es `info`, y las direcciones personales o de Gmail/Hotmail son `warning`. Las direcciones protegidas por Cloudflare cuentan como protegidas.
 
+**Cookies y RGPD, fase 1** (`src/lib/checks/privacy.ts`, catálogos en `src/lib/data/known-cookies.ts`). Sin navegador: se analiza lo que envía el servidor al entrar sin aceptar nada.
+
+| id                       | Qué revisa                                                                                                                                                                                                     |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `privacy.cookies`        | Cookies del servidor (también en las redirecciones) clasificadas en técnicas, de preferencias, de analítica, de publicidad o desconocidas                                                                      |
+| `privacy.trackers`       | Scripts de seguimiento en el HTML inicial (GA, GTM, Meta Pixel, Hotjar, Clarity, LinkedIn, TikTok, YouTube…), distinguiendo los bloqueados por el CMP (`type="text/plain"`) y Google Consent Mode con `denied` |
+| `privacy.banner`         | Gestor de consentimiento conocido (Cookiebot, OneTrust, CookieYes, Complianz, iubenda, Usercentrics…) o aviso casero                                                                                           |
+| `privacy.legal_notice`   | Enlace al aviso legal (LSSI art. 10)                                                                                                                                                                           |
+| `privacy.privacy_policy` | Enlace a la política de privacidad (RGPD art. 13)                                                                                                                                                              |
+| `privacy.cookie_policy`  | Enlace a la política de cookies (obligatoria si hay cookies que requieren consentimiento)                                                                                                                      |
+| `privacy.forms`          | Formularios de las páginas revisadas: envío por http, sin información de protección de datos o con casillas de publicidad premarcadas                                                                          |
+
+El informe incluye el aviso de que estos resultados son orientativos y no sustituyen el asesoramiento legal (`notices`). La fase 1 no ve las cookies que crean los scripts al ejecutarse: las cubre indirectamente detectando los scripts. La fase 2 (PR 7) usará un navegador real.
+
+Las páginas extra (contacto, aviso legal, privacidad) se descargan una sola vez y las comparten los checks de correo y de RGPD.
+
 La página de inicio se descarga una sola vez y la comparten todos los checks. Se acepta un certificado inválido solo para leerla, de modo que una web con el SSL roto también recibe el análisis de cabeceras.
 
 ## Protección contra SSRF
@@ -139,6 +155,6 @@ Todas las peticiones salientes pasan por `src/lib/net/safeFetch.ts`:
 - [x] PR 2: `safeFetch` con protección SSRF, validación de dominio y rate limiting
 - [x] PR 3: checks de SSL y de cabeceras
 - [x] PR 4: check de correo (DNS y emails expuestos)
-- [ ] PR 5: check de cookies y RGPD (fase 1)
+- [x] PR 5: check de cookies y RGPD (fase 1)
 - [ ] PR 6: puntuación, interfaz completa y vista imprimible
 - [ ] PR 7 (opcional): navegador headless para cookies (fase 2)
