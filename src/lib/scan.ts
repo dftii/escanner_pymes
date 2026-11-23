@@ -1,6 +1,7 @@
 import { checkEmailDns } from './checks/emailDns';
 import { analyzeEmailExposure, fetchRelatedPages } from './checks/emailExposure';
 import { checkHeaders } from './checks/headers';
+import { checkBreaches } from './checks/breaches';
 import {
   analyzeBrowserCookies,
   BROWSER_FINDING_ID,
@@ -97,6 +98,9 @@ export async function runScan(
     ]).then((parts) => parts.flat()),
     privacy: Promise.all([
       guard('privacy.scan', 'privacy', async () => checkPrivacy(await home, await pages)),
+      guard('privacy.breaches', 'privacy', async () => [
+        await checkBreaches(domain, { fetch: fetcher, now: deps.now }),
+      ]),
       browser
         ? guard(BROWSER_FINDING_ID, 'privacy', async () => {
             const observation = await browser(domain);

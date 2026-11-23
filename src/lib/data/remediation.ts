@@ -163,6 +163,12 @@ export const REMEDIATION = {
     'Crea una página "Política de cookies" con la lista de cookies, para qué sirve cada una, quién la instala y cuánto dura.',
     'Enlázala desde el pie y desde el banner de cookies. Muchos gestores (Cookiebot, Complianz) la generan y actualizan solos.',
   ],
+  'privacy.breaches': [
+    'Si no lo hiciste en su día, avisa a la AEPD y a los afectados: el RGPD obliga a notificar las brechas de datos personales.',
+    'Obliga a cambiar las contraseñas de las cuentas de clientes y guárdalas con un algoritmo seguro (bcrypt o Argon2).',
+    'Avisa a tus clientes de que nunca les pedirás contraseñas ni pagos por email, para que desconfíen del phishing.',
+    'Revisa cómo se produjo y mantén actualizados el gestor de contenidos (WordPress, PrestaShop…) y sus plugins.',
+  ],
   'privacy.forms': [
     'Junto al botón de enviar, añade la "información básica" de protección de datos: responsable, finalidad, derechos y un enlace a la política de privacidad.',
     'Las casillas para enviar publicidad o boletines deben estar desmarcadas por defecto.',

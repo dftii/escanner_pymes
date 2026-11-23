@@ -47,3 +47,12 @@ describe('runScan con correo', () => {
     expect(result.findings.find((f) => f.id === 'email.exposed')?.status).not.toBe('error');
   });
 });
+
+describe('Have I Been Pwned con la API real', () => {
+  it('adobe.com aparece en una filtración conocida', async () => {
+    const { checkBreaches } = await import('@/lib/checks/breaches');
+    const f = await checkBreaches('adobe.com');
+    expect(['warning', 'info']).toContain(f.status);
+    expect(f.detail).toContain('Adobe');
+  });
+});

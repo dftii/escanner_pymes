@@ -73,6 +73,7 @@ export const FINDING_WEIGHTS: Record<string, number> = {
   'privacy.privacy_policy': 2,
   'privacy.cookie_policy': 1.5,
   'privacy.forms': 1.5,
+  'privacy.breaches': 1,
 };
 
 const CRITICAL_WEIGHT = 3;

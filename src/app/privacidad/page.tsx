@@ -45,7 +45,9 @@ export default function Privacidad() {
         La web se aloja en {legal.hosting}, que actúa como encargado del tratamiento.
         {legal.upstash &&
           ' El resumen cifrado de la IP se guarda temporalmente en Upstash, Inc., también como encargado del tratamiento.'}{' '}
-        No se ceden datos a terceros.
+        Para comprobar si la web analizada aparece en filtraciones públicas, se consulta su nombre
+        de dominio (nunca tu IP ni datos personales) en Have I Been Pwned. No se ceden datos a
+        terceros.
       </p>
 
       <h2>Tus derechos</h2>
