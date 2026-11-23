@@ -90,7 +90,8 @@ describe('runScan', () => {
     });
     expect(result.durationMs).toBeGreaterThanOrEqual(0);
     const cats = new Set(result.findings.map((f) => f.category));
-    expect(cats).toEqual(new Set(['ssl', 'headers', 'email']));
+    expect(cats).toEqual(new Set(['ssl', 'headers', 'email', 'privacy']));
+    expect(result.notices[0]).toContain('orientativos');
     expect(result.findings.find((f) => f.id === 'email.spf')?.status).toBe('ok');
     expect(result.findings.find((f) => f.id === 'email.exposed')?.status).toBe('info');
     expect(result.findings.find((f) => f.id === 'headers.xcto')?.status).toBe('ok');

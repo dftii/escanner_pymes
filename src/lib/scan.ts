@@ -1,6 +1,7 @@
 import { checkEmailDns } from './checks/emailDns';
-import { checkEmailExposure } from './checks/emailExposure';
+import { analyzeEmailExposure, fetchRelatedPages } from './checks/emailExposure';
 import { checkHeaders } from './checks/headers';
+import { checkPrivacy, PRIVACY_DISCLAIMER } from './checks/privacy';
 import { checkSsl, type SslDeps } from './checks/ssl';
 import { errorFinding } from './findings';
 import type { DnsClient } from './net/dnsClient';
@@ -22,6 +23,8 @@ export type ScanResult = {
   finalUrl: string | null;
   durationMs: number;
   findings: Finding[];
+  /** Avisos generales para mostrar con el informe (p. ej. carácter orientativo del RGPD). */
+  notices: string[];
 };
 
 /**
@@ -53,26 +56,32 @@ export async function runScan(domain: string, deps: ScanDeps = {}): Promise<Scan
   const fetcher = deps.fetch ?? safeFetch;
 
   const homePromise = fetchHomepage(domain, fetcher);
-  const [ssl, home, emailDns, exposure] = await Promise.allSettled([
+  const [ssl, home, emailDns, pages] = await Promise.allSettled([
     checkSsl(domain, { fetch: fetcher, probe: deps.probe, now: deps.now }),
     homePromise,
     checkEmailDns(domain, deps.dns),
-    homePromise.then((page) => checkEmailExposure(page, { fetch: fetcher })),
+    homePromise.then((page) => fetchRelatedPages(page, fetcher)),
   ]);
+
+  const homeFailed = (id: string, category: Finding['category']) =>
+    errorFinding(id, category, home.status === 'rejected' ? home.reason : 'sin página');
 
   const findings: Finding[] = [
     ...(ssl.status === 'fulfilled'
       ? ssl.value
       : [errorFinding('ssl.certificate', 'ssl', ssl.reason)]),
     ...(home.status === 'fulfilled'
-      ? checkHeaders(home.value)
-      : [errorFinding('headers.fetch', 'headers', home.reason)]),
+      ? safely('headers.fetch', 'headers', () => checkHeaders(home.value))
+      : [homeFailed('headers.fetch', 'headers')]),
     ...(emailDns.status === 'fulfilled'
       ? emailDns.value
       : [errorFinding('email.dns', 'email', emailDns.reason)]),
-    exposure.status === 'fulfilled'
-      ? exposure.value
-      : errorFinding('email.exposed', 'email', exposure.reason),
+    ...(home.status === 'fulfilled' && pages.status === 'fulfilled'
+      ? [
+          ...safely('email.exposed', 'email', () => [analyzeEmailExposure(pages.value)]),
+          ...safely('privacy.scan', 'privacy', () => checkPrivacy(home.value, pages.value)),
+        ]
+      : [homeFailed('email.exposed', 'email'), homeFailed('privacy.scan', 'privacy')]),
   ];
 
   return {
@@ -81,5 +90,15 @@ export async function runScan(domain: string, deps: ScanDeps = {}): Promise<Scan
     finalUrl: home.status === 'fulfilled' ? home.value.url : null,
     durationMs: Date.now() - started,
     findings,
+    notices: [PRIVACY_DISCLAIMER],
   };
+}
+
+/** Ejecuta un check síncrono convirtiendo cualquier excepción en un hallazgo de error. */
+function safely(id: string, category: Finding['category'], run: () => Finding[]): Finding[] {
+  try {
+    return run();
+  } catch (error) {
+    return [errorFinding(id, category, error)];
+  }
 }

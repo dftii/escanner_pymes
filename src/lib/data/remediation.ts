@@ -121,6 +121,48 @@ export const REMEDIATION = {
     'WordPress: plugins como "Email Address Encoder" ocultan las direcciones a los robots sin que lo noten tus clientes.',
     'Evita publicar direcciones personales (nombre.apellido@) o de Gmail/Hotmail: usa una de tu dominio.',
   ],
+
+  // ─── Cookies y RGPD ─────────────────────────────────────────────────────
+  'privacy.cookies': [
+    'Instala un gestor de consentimiento (CMP) que bloquee estas cookies hasta que el usuario pulse "Aceptar".',
+    'WordPress: Complianz, CookieYes o Cookiebot bloquean los scripts automáticamente. Shopify y Wix tienen banner propio en el panel.',
+    'Si la cookie la pone tu propio servidor o un plugin, configúralo para que no la cree hasta tener consentimiento.',
+  ],
+  'privacy.cookies_unknown': [
+    'Identifica para qué sirve cada cookie (tu desarrollador o el plugin que la crea te lo puede decir).',
+    'Si es técnica (sesión, carrito, seguridad), no necesitas consentimiento: inclúyela en la política de cookies.',
+    'Si es de analítica o publicidad, bloquéala hasta que el usuario acepte.',
+  ],
+  'privacy.trackers': [
+    'Haz que estos scripts solo se carguen tras aceptar: los gestores de consentimiento (Cookiebot, Complianz, CookieYes…) lo hacen marcando cada script con su categoría.',
+    'Con Google Tag Manager, activa Consent Mode v2 y configura los permisos por defecto como "denied".',
+    'Si no usas los datos de alguna de estas herramientas, quítala: menos scripts, menos riesgo.',
+  ],
+  'privacy.banner': [
+    'Instala un banner de cookies con botones de "Aceptar", "Rechazar" y "Configurar" en la primera capa, con el mismo peso visual.',
+    'WordPress: Complianz o CookieYes (tienen versión gratuita). Shopify: "Privacidad de clientes" en Ajustes. Wix: "Banner de cookies" en Configuración.',
+    'No vale un aviso del tipo "si sigues navegando aceptas": la AEPD exige una acción clara del usuario.',
+  ],
+  'privacy.legal_notice': [
+    'Crea una página "Aviso legal" con: nombre o razón social, NIF/CIF, domicilio, email de contacto y datos registrales si los tienes.',
+    'Enlázala desde el pie de todas las páginas.',
+    'Los generadores de textos legales de los gestores de consentimiento (Complianz, iubenda) o tu gestoría pueden ayudarte.',
+  ],
+  'privacy.privacy_policy': [
+    'Crea una página "Política de privacidad" con: responsable, finalidades, base legal, plazos de conservación, destinatarios y cómo ejercer los derechos.',
+    'Enlázala desde el pie y desde cada formulario.',
+    'La AEPD tiene una herramienta gratuita, "Facilita RGPD", para pequeños negocios.',
+  ],
+  'privacy.cookie_policy': [
+    'Crea una página "Política de cookies" con la lista de cookies, para qué sirve cada una, quién la instala y cuánto dura.',
+    'Enlázala desde el pie y desde el banner de cookies. Muchos gestores (Cookiebot, Complianz) la generan y actualizan solos.',
+  ],
+  'privacy.forms': [
+    'Junto al botón de enviar, añade la "información básica" de protección de datos: responsable, finalidad, derechos y un enlace a la política de privacidad.',
+    'Las casillas para enviar publicidad o boletines deben estar desmarcadas por defecto.',
+    'Asegúrate de que el formulario se envía por https.',
+    'WordPress (Contact Form 7, WPForms, Elementor): todos permiten añadir una casilla de aceptación y un texto legal.',
+  ],
 } as const satisfies Record<string, readonly string[]>;
 
 export type RemediationId = keyof typeof REMEDIATION;
