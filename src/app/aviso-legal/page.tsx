@@ -1,9 +1,11 @@
 import type { Metadata } from 'next';
-import { LegalPage, Placeholder } from '@/components/LegalPage';
+import { Dato, LegalPage } from '@/components/LegalPage';
+import { getLegalInfo, LEGAL_ENV_VARS as V } from '@/lib/legal';
 
 export const metadata: Metadata = { title: 'Aviso legal · Escáner Pymes' };
 
 export default function AvisoLegal() {
+  const legal = getLegalInfo();
   return (
     <LegalPage title="Aviso legal">
       <p>
@@ -13,19 +15,16 @@ export default function AvisoLegal() {
       </p>
       <ul>
         <li>
-          Titular: <Placeholder>nombre o razón social</Placeholder>
+          Titular: <Dato value={legal.nombre} variable={V.nombre} />
         </li>
         <li>
-          NIF/CIF: <Placeholder>NIF</Placeholder>
+          NIF: <Dato value={legal.nif} variable={V.nif} />
         </li>
         <li>
-          Domicilio: <Placeholder>dirección postal</Placeholder>
+          Domicilio: <Dato value={legal.domicilio} variable={V.domicilio} />
         </li>
         <li>
-          Email de contacto: <Placeholder>email</Placeholder>
-        </li>
-        <li>
-          Datos registrales: <Placeholder>si procede</Placeholder>
+          Email de contacto: <Dato value={legal.email} variable={V.email} />
         </li>
       </ul>
 
