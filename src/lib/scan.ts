@@ -7,7 +7,7 @@ import { errorFinding } from './findings';
 import type { DnsClient } from './net/dnsClient';
 import { isScanError } from './net/errors';
 import { safeFetch, type SafeResponse } from './net/safeFetch';
-import type { Finding } from './types';
+import type { Category, Finding } from './types';
 
 export type ScanDeps = {
   fetch?: typeof safeFetch;
@@ -47,57 +47,64 @@ export async function fetchHomepage(
   }
 }
 
+/** Se llama cada vez que termina una categoría, para mostrar el progreso real. */
+export type ProgressHandler = (category: Category, findings: Finding[]) => void;
+
 /**
  * Ejecuta todas las comprobaciones en paralelo. Un check que falla se convierte
  * en un hallazgo `error`: nunca tumba el informe entero.
  */
-export async function runScan(domain: string, deps: ScanDeps = {}): Promise<ScanResult> {
+export async function runScan(
+  domain: string,
+  deps: ScanDeps = {},
+  onProgress?: ProgressHandler,
+): Promise<ScanResult> {
   const started = Date.now();
   const fetcher = deps.fetch ?? safeFetch;
 
-  const homePromise = fetchHomepage(domain, fetcher);
-  const [ssl, home, emailDns, pages] = await Promise.allSettled([
-    checkSsl(domain, { fetch: fetcher, probe: deps.probe, now: deps.now }),
-    homePromise,
-    checkEmailDns(domain, deps.dns),
-    homePromise.then((page) => fetchRelatedPages(page, fetcher)),
-  ]);
+  const home = fetchHomepage(domain, fetcher);
+  const pages = home.then((page) => fetchRelatedPages(page, fetcher));
+  // Evita avisos de promesas rechazadas sin manejar: cada categoría las trata.
+  home.catch(() => {});
+  pages.catch(() => {});
 
-  const homeFailed = (id: string, category: Finding['category']) =>
-    errorFinding(id, category, home.status === 'rejected' ? home.reason : 'sin página');
+  const tasks: Record<Category, Promise<Finding[]>> = {
+    ssl: guard('ssl.certificate', 'ssl', () =>
+      checkSsl(domain, { fetch: fetcher, probe: deps.probe, now: deps.now }),
+    ),
+    headers: guard('headers.fetch', 'headers', async () => checkHeaders(await home)),
+    email: Promise.all([
+      guard('email.dns', 'email', () => checkEmailDns(domain, deps.dns)),
+      guard('email.exposed', 'email', async () => [analyzeEmailExposure(await pages)]),
+    ]).then((parts) => parts.flat()),
+    privacy: guard('privacy.scan', 'privacy', async () => checkPrivacy(await home, await pages)),
+  };
 
-  const findings: Finding[] = [
-    ...(ssl.status === 'fulfilled'
-      ? ssl.value
-      : [errorFinding('ssl.certificate', 'ssl', ssl.reason)]),
-    ...(home.status === 'fulfilled'
-      ? safely('headers.fetch', 'headers', () => checkHeaders(home.value))
-      : [homeFailed('headers.fetch', 'headers')]),
-    ...(emailDns.status === 'fulfilled'
-      ? emailDns.value
-      : [errorFinding('email.dns', 'email', emailDns.reason)]),
-    ...(home.status === 'fulfilled' && pages.status === 'fulfilled'
-      ? [
-          ...safely('email.exposed', 'email', () => [analyzeEmailExposure(pages.value)]),
-          ...safely('privacy.scan', 'privacy', () => checkPrivacy(home.value, pages.value)),
-        ]
-      : [homeFailed('email.exposed', 'email'), homeFailed('privacy.scan', 'privacy')]),
-  ];
+  const categories = Object.keys(tasks) as Category[];
+  for (const category of categories) {
+    void tasks[category].then((findings) => onProgress?.(category, findings));
+  }
+  const results = await Promise.all(categories.map((c) => tasks[c]));
+  const homePage = await home.catch(() => null);
 
   return {
     domain,
     scannedAt: (deps.now?.() ?? new Date()).toISOString(),
-    finalUrl: home.status === 'fulfilled' ? home.value.url : null,
+    finalUrl: homePage?.url ?? null,
     durationMs: Date.now() - started,
-    findings,
+    findings: results.flat(),
     notices: [PRIVACY_DISCLAIMER],
   };
 }
 
-/** Ejecuta un check síncrono convirtiendo cualquier excepción en un hallazgo de error. */
-function safely(id: string, category: Finding['category'], run: () => Finding[]): Finding[] {
+/** Ejecuta un check y convierte cualquier excepción en un hallazgo de error. */
+async function guard(
+  id: string,
+  category: Category,
+  run: () => Finding[] | Promise<Finding[]>,
+): Promise<Finding[]> {
   try {
-    return run();
+    return await run();
   } catch (error) {
     return [errorFinding(id, category, error)];
   }
