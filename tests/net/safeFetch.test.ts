@@ -149,6 +149,19 @@ describe('safeFetch (fetch simulado)', () => {
     expect(b.calls.map((c) => c.method)).toEqual(['HEAD', 'GET']);
   });
 
+  it('con followRedirects: false devuelve el 3xx sin seguirlo', async () => {
+    const { impl, calls } = fakeFetch({
+      'http://minegocio.es/': { status: 301, headers: [['location', 'https://minegocio.es/']] },
+    });
+    const res = await safeFetch('http://minegocio.es/', {
+      fetchImpl: impl,
+      followRedirects: false,
+    });
+    expect(res.status).toBe(301);
+    expect(res.headers.get('location')).toBe('https://minegocio.es/');
+    expect(calls).toHaveLength(1);
+  });
+
   it('devuelve un 3xx sin Location como respuesta final', async () => {
     const { impl } = fakeFetch({ 'https://minegocio.es/': { status: 304 } });
     expect((await safeFetch('https://minegocio.es/', { fetchImpl: impl })).status).toBe(304);

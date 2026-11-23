@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { ScanError, isScanError } from '@/lib/net/errors';
 import { resolvePublic } from '@/lib/net/lookup';
 import { clientIp, getRateLimiter, hashKey } from '@/lib/rateLimit';
+import { runScan } from '@/lib/scan';
 import { parseScanRequest } from '@/lib/scanRequest';
 
 export const runtime = 'nodejs';
@@ -11,9 +12,9 @@ export const maxDuration = 60;
 /**
  * POST /api/scan  { domain: string, consent: true }
  *
- * De momento valida, aplica el rate limit y comprueba que el dominio existe y
- * es público. Las comprobaciones (SSL, cabeceras, correo, cookies) llegan en
- * los PR 3 a 5. No se registra el dominio ni la IP en ningún log.
+ * Valida, aplica el rate limit, comprueba que el dominio existe y es público y
+ * ejecuta los checks (SSL y cabeceras; correo y cookies llegan en los PR 4-5).
+ * No se registra el dominio ni la IP en ningún log.
  */
 export async function POST(request: Request) {
   try {
@@ -35,11 +36,11 @@ export async function POST(request: Request) {
     }
 
     await resolvePublic(domain);
+    const result = await runScan(domain);
 
-    return NextResponse.json(
-      { domain, findings: [] },
-      { headers: { 'cache-control': 'no-store', 'x-ratelimit-remaining': String(rl.remaining) } },
-    );
+    return NextResponse.json(result, {
+      headers: { 'cache-control': 'no-store', 'x-ratelimit-remaining': String(rl.remaining) },
+    });
   } catch (error) {
     if (isScanError(error)) return errorResponse(error);
     console.error('Error inesperado en /api/scan', error instanceof Error ? error.name : 'unknown');

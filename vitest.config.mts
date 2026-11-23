@@ -8,6 +8,8 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['tests/**/*.test.ts'],
+    // Los tests contra webs reales van aparte: `npm run test:network`.
+    exclude: ['tests/network/**', 'node_modules/**'],
     coverage: {
       provider: 'v8',
       include: ['src/lib/**/*.ts'],
