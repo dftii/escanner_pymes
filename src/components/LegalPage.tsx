@@ -17,13 +17,17 @@ export function LegalPage({ title, children }: { title: string; children: React.
 }
 
 /**
- * Dato que el titular de la web debe completar antes de publicar.
- * Se ve resaltado para que no pase desapercibido.
+ * Dato del titular leído de una variable de entorno. Si falta, se muestra
+ * resaltado con el nombre de la variable para que no pase desapercibido.
  */
-export function Placeholder({ children }: { children: React.ReactNode }) {
+export function Dato({ value, variable }: { value: string | null; variable: string }) {
+  if (value) return <>{value}</>;
   return (
-    <mark className="rounded bg-amber-200 px-1 text-amber-950" title="Dato pendiente de completar">
-      [{children}]
+    <mark
+      className="rounded bg-amber-200 px-1 text-amber-950"
+      title={`Falta la variable de entorno ${variable}`}
+    >
+      [pendiente: {variable}]
     </mark>
   );
 }

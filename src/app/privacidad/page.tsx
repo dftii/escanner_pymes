@@ -1,9 +1,11 @@
 import type { Metadata } from 'next';
-import { LegalPage, Placeholder } from '@/components/LegalPage';
+import { Dato, LegalPage } from '@/components/LegalPage';
+import { getLegalInfo, LEGAL_ENV_VARS as V } from '@/lib/legal';
 
 export const metadata: Metadata = { title: 'Política de privacidad · Escáner Pymes' };
 
 export default function Privacidad() {
+  const legal = getLegalInfo();
   return (
     <LegalPage title="Política de privacidad">
       <p>
@@ -13,8 +15,9 @@ export default function Privacidad() {
 
       <h2>Responsable</h2>
       <p>
-        <Placeholder>nombre o razón social</Placeholder>, con NIF <Placeholder>NIF</Placeholder> y
-        contacto en <Placeholder>email</Placeholder>.
+        <Dato value={legal.nombre} variable={V.nombre} />, con NIF{' '}
+        <Dato value={legal.nif} variable={V.nif} /> y contacto en{' '}
+        <Dato value={legal.email} variable={V.email} />.
       </p>
 
       <h2>Qué datos tratamos</h2>
@@ -39,18 +42,18 @@ export default function Privacidad() {
 
       <h2>Destinatarios</h2>
       <p>
-        La web se aloja en <Placeholder>proveedor de hosting, p. ej. Vercel Inc.</Placeholder>, que
-        actúa como encargado del tratamiento. Si se activa el límite compartido, el resumen cifrado
-        de la IP se guarda temporalmente en <Placeholder>Upstash, si se usa</Placeholder>. No se
-        ceden datos a terceros.
+        La web se aloja en {legal.hosting}, que actúa como encargado del tratamiento.
+        {legal.upstash &&
+          ' El resumen cifrado de la IP se guarda temporalmente en Upstash, Inc., también como encargado del tratamiento.'}{' '}
+        No se ceden datos a terceros.
       </p>
 
       <h2>Tus derechos</h2>
       <p>
         Puedes ejercer los derechos de acceso, rectificación, supresión, oposición, limitación y
-        portabilidad escribiendo a <Placeholder>email</Placeholder>. Si crees que no hemos atendido
-        bien tu solicitud, puedes reclamar ante la Agencia Española de Protección de Datos
-        (aepd.es).
+        portabilidad escribiendo a <Dato value={legal.email} variable={V.email} />. Si crees que no
+        hemos atendido bien tu solicitud, puedes reclamar ante la Agencia Española de Protección de
+        Datos (aepd.es).
       </p>
     </LegalPage>
   );

@@ -69,14 +69,19 @@ Los tests unitarios no salen a Internet: usan respuestas simuladas y un servidor
 
 Variables de entorno (se irán añadiendo en cada hito):
 
-| Variable                   | Uso                                                                | Por defecto           |
-| -------------------------- | ------------------------------------------------------------------ | --------------------- |
-| `UPSTASH_REDIS_REST_URL`   | Rate limit compartido entre instancias (opcional, plan gratis)     | sin definir → memoria |
-| `UPSTASH_REDIS_REST_TOKEN` | Token de Upstash                                                   | sin definir           |
-| `RATE_LIMIT_SALT`          | Sal para el hash de la IP (la IP nunca se guarda en claro)         | derivada / aleatoria  |
-| `ENABLE_HEADLESS`          | Activa el análisis de cookies con navegador (fase 2)               | `false`               |
-| `CHROMIUM_PATH`            | Ruta al ejecutable de Chromium para la fase 2                      | el de Playwright      |
-| `DNS_SERVERS`              | Servidores DNS para los checks de correo, p. ej. `1.1.1.1,8.8.8.8` | los del sistema       |
+| Variable                   | Uso                                                                | Por defecto             |
+| -------------------------- | ------------------------------------------------------------------ | ----------------------- |
+| `UPSTASH_REDIS_REST_URL`   | Rate limit compartido entre instancias (opcional, plan gratis)     | sin definir → memoria   |
+| `UPSTASH_REDIS_REST_TOKEN` | Token de Upstash                                                   | sin definir             |
+| `RATE_LIMIT_SALT`          | Sal para el hash de la IP (la IP nunca se guarda en claro)         | derivada / aleatoria    |
+| `ENABLE_HEADLESS`          | Activa el análisis de cookies con navegador (fase 2)               | `false`                 |
+| `LEGAL_NOMBRE`             | Nombre y apellidos del titular (aviso legal y privacidad)          | pendiente (se resalta)  |
+| `LEGAL_NIF`                | NIF del titular                                                    | pendiente (se resalta)  |
+| `LEGAL_DOMICILIO`          | Dirección postal del titular                                       | pendiente (se resalta)  |
+| `LEGAL_EMAIL`              | Email de contacto y para ejercer los derechos RGPD                 | pendiente (se resalta)  |
+| `LEGAL_HOSTING`            | Proveedor de hosting que aparece en la política de privacidad      | `Vercel Inc. (EE. UU.)` |
+| `CHROMIUM_PATH`            | Ruta al ejecutable de Chromium para la fase 2                      | el de Playwright        |
+| `DNS_SERVERS`              | Servidores DNS para los checks de correo, p. ej. `1.1.1.1,8.8.8.8` | los del sistema         |
 
 **Fase 2 en producción.** Vercel no trae Chromium, así que con `ENABLE_HEADLESS=true` hay que darle uno con `CHROMIUM_PATH` (por ejemplo, el paquete `@sparticuz/chromium` descomprimido en `/tmp`) o, más sencillo, desplegar en un servidor o contenedor con Chromium instalado (`npx playwright-core install --with-deps --only-shell chromium`). Cada navegador usa unos 150 MB de memoria y añade entre 3 y 20 s al análisis; sin la variable, la herramienta funciona igual que antes.
 
@@ -121,7 +126,7 @@ Con `200` la respuesta es `application/x-ndjson`, con un evento JSON por línea 
 - Sin cookies, sin `localStorage` y sin scripts de terceros.
 - `tests/csp.test.ts` y `tests/selfscan.test.ts` comprueban que la web aprueba sus propios checks de cabeceras y de RGPD.
 
-> **Antes de publicar:** completa los datos marcados en amarillo (titular, NIF, dirección, email, hosting) en `/aviso-legal` y `/privacidad`.
+> **Antes de publicar:** define `LEGAL_NOMBRE`, `LEGAL_NIF`, `LEGAL_DOMICILIO` y `LEGAL_EMAIL` en Vercel. Los datos del titular no se guardan en el repositorio; mientras falte alguno, `/aviso-legal` y `/privacidad` lo muestran resaltado en amarillo. La mención a Upstash aparece sola si `UPSTASH_REDIS_REST_URL` está definida. Tras cambiar las variables, vuelve a desplegar.
 
 ## Comprobaciones
 
