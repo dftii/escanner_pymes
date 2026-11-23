@@ -10,5 +10,7 @@ export default defineConfig({
     environment: 'node',
     include: ['tests/network/**/*.test.ts'],
     testTimeout: 30_000,
+    // Dependen de webs ajenas: un fallo puntual de red no debe dar un falso rojo.
+    retry: 2,
   },
 });
