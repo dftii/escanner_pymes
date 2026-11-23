@@ -21,11 +21,12 @@ describe('checkEmailDns con DNS real', () => {
     expect(f['email.dmarc']!.title).toContain('reject');
   });
 
-  it('github.com: SPF dentro del límite de consultas y DMARC en reject', async () => {
+  it('github.com: SPF dentro del límite de consultas y DMARC que bloquea', async () => {
     const f = byId(await checkEmailDns('www.github.com'));
     expect(f['email.spf']?.status).not.toBe('error');
     expect((f['email.spf']?.evidence as { lookups: number }).lookups).toBeGreaterThan(0);
-    expect(f['email.dmarc']!.title).toContain('reject');
+    // github.com usa "quarantine"; aceptamos cualquier política que bloquee.
+    expect(f['email.dmarc']).toMatchObject({ status: 'ok' });
   });
 
   it('un dominio inexistente no rompe nada', async () => {
