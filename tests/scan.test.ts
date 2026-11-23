@@ -3,8 +3,10 @@ import { describe, expect, it } from 'vitest';
 import { ScanError } from '@/lib/net/errors';
 import type { SafeResponse, safeFetch } from '@/lib/net/safeFetch';
 import { fetchHomepage, runScan } from '@/lib/scan';
+import { fakeDns } from './helpers/fakeDns';
 
 const NOW = new Date('2026-11-23T12:00:00Z');
+const dns = fakeDns({ txt: { 'minegocio.es': 'v=spf1 -all' } });
 
 const page = (url: string, status = 200, headers: Record<string, string> = {}): SafeResponse => ({
   url,
@@ -70,6 +72,7 @@ describe('runScan', () => {
   it('junta SSL y cabeceras', async () => {
     const result = await runScan('minegocio.es', {
       now: () => NOW,
+      dns,
       probe,
       fetch: fetchFrom({
         'http://minegocio.es/': page('http://minegocio.es/', 301, {
@@ -87,13 +90,16 @@ describe('runScan', () => {
     });
     expect(result.durationMs).toBeGreaterThanOrEqual(0);
     const cats = new Set(result.findings.map((f) => f.category));
-    expect(cats).toEqual(new Set(['ssl', 'headers']));
+    expect(cats).toEqual(new Set(['ssl', 'headers', 'email']));
+    expect(result.findings.find((f) => f.id === 'email.spf')?.status).toBe('ok');
+    expect(result.findings.find((f) => f.id === 'email.exposed')?.status).toBe('info');
     expect(result.findings.find((f) => f.id === 'headers.xcto')?.status).toBe('ok');
   });
 
   it('si no se puede cargar la web, las cabeceras salen como error y el SSL sigue', async () => {
     const result = await runScan('minegocio.es', {
       now: () => NOW,
+      dns,
       probe,
       fetch: fetchFrom({ 'https://minegocio.es/': new ScanError('private_address', 'x') }),
     });
@@ -107,6 +113,7 @@ describe('runScan', () => {
   it('si el check SSL revienta, sale como error sin tumbar el informe', async () => {
     const result = await runScan('minegocio.es', {
       now: () => NOW,
+      dns,
       probe: () => {
         throw new Error('bug');
       },

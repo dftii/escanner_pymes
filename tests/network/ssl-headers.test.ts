@@ -71,6 +71,6 @@ describe('runScan completo', () => {
     expect(result.durationMs).toBeLessThan(20_000);
     expect(result.finalUrl).toMatch(/^https:\/\/badssl\.com\//);
     const categories = new Set(result.findings.map((f) => f.category));
-    expect(categories).toEqual(new Set(['ssl', 'headers']));
+    expect([...categories]).toEqual(expect.arrayContaining(['ssl', 'headers']));
   });
 });

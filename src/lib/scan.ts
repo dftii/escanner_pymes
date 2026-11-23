@@ -1,6 +1,9 @@
+import { checkEmailDns } from './checks/emailDns';
+import { checkEmailExposure } from './checks/emailExposure';
 import { checkHeaders } from './checks/headers';
 import { checkSsl, type SslDeps } from './checks/ssl';
 import { errorFinding } from './findings';
+import type { DnsClient } from './net/dnsClient';
 import { isScanError } from './net/errors';
 import { safeFetch, type SafeResponse } from './net/safeFetch';
 import type { Finding } from './types';
@@ -8,6 +11,7 @@ import type { Finding } from './types';
 export type ScanDeps = {
   fetch?: typeof safeFetch;
   probe?: SslDeps['probe'];
+  dns?: DnsClient;
   now?: () => Date;
 };
 
@@ -48,9 +52,12 @@ export async function runScan(domain: string, deps: ScanDeps = {}): Promise<Scan
   const started = Date.now();
   const fetcher = deps.fetch ?? safeFetch;
 
-  const [ssl, home] = await Promise.allSettled([
+  const homePromise = fetchHomepage(domain, fetcher);
+  const [ssl, home, emailDns, exposure] = await Promise.allSettled([
     checkSsl(domain, { fetch: fetcher, probe: deps.probe, now: deps.now }),
-    fetchHomepage(domain, fetcher),
+    homePromise,
+    checkEmailDns(domain, deps.dns),
+    homePromise.then((page) => checkEmailExposure(page, { fetch: fetcher })),
   ]);
 
   const findings: Finding[] = [
@@ -60,6 +67,12 @@ export async function runScan(domain: string, deps: ScanDeps = {}): Promise<Scan
     ...(home.status === 'fulfilled'
       ? checkHeaders(home.value)
       : [errorFinding('headers.fetch', 'headers', home.reason)]),
+    ...(emailDns.status === 'fulfilled'
+      ? emailDns.value
+      : [errorFinding('email.dns', 'email', emailDns.reason)]),
+    exposure.status === 'fulfilled'
+      ? exposure.value
+      : errorFinding('email.exposed', 'email', exposure.reason),
   ];
 
   return {

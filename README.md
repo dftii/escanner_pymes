@@ -54,11 +54,11 @@ npm run lint         # ESLint + Prettier
 npm run typecheck
 npm test
 npm run test:coverage
-npm run test:network # contra webs reales (badssl.com, google.com); necesita Internet
+npm run test:network # contra webs y DNS reales (badssl.com, google.com, github.com); necesita Internet
 npm run build
 ```
 
-Los tests unitarios no salen a Internet: usan respuestas simuladas y un servidor TLS local con un certificado autofirmado solo para tests (`tests/fixtures/tls`). Los de `tests/network` no se ejecutan en el CI para que no dependa de webs ajenas.
+Los tests unitarios no salen a Internet: usan respuestas simuladas y un servidor TLS local con un certificado autofirmado solo para tests (`tests/fixtures/tls`). Los de `tests/network` van en un workflow aparte (`.github/workflows/network.yml`: en cada PR, cada lunes y a mano), para que el CI principal no dependa de webs ajenas.
 
 ## Despliegue en Vercel
 
@@ -68,12 +68,13 @@ Los tests unitarios no salen a Internet: usan respuestas simuladas y un servidor
 
 Variables de entorno (se irán añadiendo en cada hito):
 
-| Variable                   | Uso                                                            | Por defecto           |
-| -------------------------- | -------------------------------------------------------------- | --------------------- |
-| `UPSTASH_REDIS_REST_URL`   | Rate limit compartido entre instancias (opcional, plan gratis) | sin definir → memoria |
-| `UPSTASH_REDIS_REST_TOKEN` | Token de Upstash                                               | sin definir           |
-| `RATE_LIMIT_SALT`          | Sal para el hash de la IP (la IP nunca se guarda en claro)     | derivada / aleatoria  |
-| `ENABLE_HEADLESS`          | Activa el análisis de cookies con navegador (fase 2)           | `false`               |
+| Variable                   | Uso                                                                | Por defecto           |
+| -------------------------- | ------------------------------------------------------------------ | --------------------- |
+| `UPSTASH_REDIS_REST_URL`   | Rate limit compartido entre instancias (opcional, plan gratis)     | sin definir → memoria |
+| `UPSTASH_REDIS_REST_TOKEN` | Token de Upstash                                                   | sin definir           |
+| `RATE_LIMIT_SALT`          | Sal para el hash de la IP (la IP nunca se guarda en claro)         | derivada / aleatoria  |
+| `ENABLE_HEADLESS`          | Activa el análisis de cookies con navegador (fase 2)               | `false`               |
+| `DNS_SERVERS`              | Servidores DNS para los checks de correo, p. ej. `1.1.1.1,8.8.8.8` | los del sistema       |
 
 Sin Upstash el límite (5 análisis cada 10 minutos por IP) se guarda en la memoria de cada instancia de Vercel: funciona, pero no se comparte entre instancias.
 
@@ -108,6 +109,18 @@ Cada hallazgo tiene `id`, `category`, `status` (`ok`, `warning`, `fail`, `info`,
 
 **Cabeceras de seguridad** (`src/lib/checks/headers.ts`): HSTS (con un mínimo de 6 meses), CSP (avisa si permite `'unsafe-inline'` sin nonce), `X-Content-Type-Options`, protección frente a incrustación (`X-Frame-Options` o `frame-ancestors`), `Referrer-Policy`, `Permissions-Policy` y cabeceras que revelan versiones (`Server`, `X-Powered-By`…).
 
+**Correo y suplantación** (`src/lib/checks/emailDns.ts`, `emailExposure.ts`). Se revisa el dominio sin `www.`:
+
+| id              | Qué revisa                                                                                                                                       |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `email.mx`      | Si el dominio recibe correo y con qué proveedor (Google Workspace, Microsoft 365, OVH, IONOS…)                                                   |
+| `email.spf`     | Si existe y es único, el `all` final (`-all`, `~all`, `?all`, `+all`) y las consultas DNS que hace (máximo 10, siguiendo `include` y `redirect`) |
+| `email.dmarc`   | Si existe, su política (`none`, `quarantine`, `reject`), si se aplica al 100 % y si pide informes (`rua`)                                        |
+| `email.dkim`    | Firma DKIM con los selectores habituales; si no aparece es `info`, porque puede usar otro selector                                               |
+| `email.exposed` | Emails legibles por robots en la home y en hasta 3 páginas de contacto, aviso legal o privacidad                                                 |
+
+En `email.exposed` se tiene en cuenta que la LSSI obliga a publicar un email de contacto: un buzón genérico del dominio (info@, contacto@) es `info`, y las direcciones personales o de Gmail/Hotmail son `warning`. Las direcciones protegidas por Cloudflare cuentan como protegidas.
+
 La página de inicio se descarga una sola vez y la comparten todos los checks. Se acepta un certificado inválido solo para leerla, de modo que una web con el SSL roto también recibe el análisis de cabeceras.
 
 ## Protección contra SSRF
@@ -125,7 +138,7 @@ Todas las peticiones salientes pasan por `src/lib/net/safeFetch.ts`:
 - [x] PR 1: scaffolding, CI y README
 - [x] PR 2: `safeFetch` con protección SSRF, validación de dominio y rate limiting
 - [x] PR 3: checks de SSL y de cabeceras
-- [ ] PR 4: check de correo (DNS y emails expuestos)
+- [x] PR 4: check de correo (DNS y emails expuestos)
 - [ ] PR 5: check de cookies y RGPD (fase 1)
 - [ ] PR 6: puntuación, interfaz completa y vista imprimible
 - [ ] PR 7 (opcional): navegador headless para cookies (fase 2)
