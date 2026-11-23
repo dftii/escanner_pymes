@@ -1,5 +1,5 @@
 import { fixFor } from '../data/remediation';
-import { extractEmails, findContactPages } from '../html';
+import { extractEmails, findContactPages, findInternalPages } from '../html';
 import { safeFetch, type SafeResponse } from '../net/safeFetch';
 import type { Finding } from '../types';
 
@@ -44,8 +44,8 @@ const FREE_PROVIDERS =
 export type ExposureDeps = { fetch?: typeof safeFetch };
 
 /**
- * Emails que un robot puede leer en la home y en hasta 3 páginas de contacto,
- * aviso legal o privacidad (5 páginas como mucho en total, con la home).
+ * Emails que un robot puede leer en la home y en las páginas que devuelve
+ * `fetchRelatedPages`.
  */
 export async function checkEmailExposure(
   home: SafeResponse,
@@ -54,15 +54,23 @@ export async function checkEmailExposure(
   return analyzeEmailExposure(await fetchRelatedPages(home, deps.fetch));
 }
 
+/** Páginas extra que se revisan además de la home. */
+export const EXTRA_PAGES = { contact: 3, content: 4 } as const;
+
 /**
- * La home y hasta 3 páginas enlazadas de contacto, aviso legal o privacidad.
- * Las páginas que fallan se omiten. Lo comparten los checks de correo y RGPD.
+ * La home, hasta 3 páginas de contacto, aviso legal o privacidad y hasta 4
+ * páginas de contenido del menú (8 como mucho). Las que fallan se omiten.
+ * Lo comparten los checks de correo y RGPD.
  */
 export async function fetchRelatedPages(
   home: SafeResponse,
   fetcher: typeof safeFetch = safeFetch,
 ): Promise<SafeResponse[]> {
-  const extra = findContactPages(home.body, home.url, 3);
+  const contact = findContactPages(home.body, home.url, EXTRA_PAGES.contact);
+  const extra = [
+    ...contact,
+    ...findInternalPages(home.body, home.url, EXTRA_PAGES.content, contact),
+  ];
   const pages = await Promise.allSettled(
     extra.map((url) => fetcher(url, { acceptInvalidCert: true, maxBytes: 1024 * 1024 })),
   );

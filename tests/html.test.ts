@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { extractEmails, findContactPages } from '@/lib/html';
+import { extractEmails, findContactPages, findInternalPages } from '@/lib/html';
 
 describe('extractEmails', () => {
   it('encuentra emails en texto y en mailto, sin duplicados', () => {
@@ -61,5 +61,36 @@ describe('findContactPages', () => {
     expect(findContactPages('<a href="#">Contacto</a>', 'https://minegocio.es/contacto')).toEqual(
       [],
     );
+  });
+});
+
+describe('findInternalPages', () => {
+  const html = `
+    <a href="/blog/entrada-1">Entrada</a>
+    <header><nav>
+      <a href="/">Inicio</a>
+      <a href="/servicios/">Servicios</a>
+      <a href="https://www.minegocio.es/tienda">Tienda</a>
+      <a href="/servicios">Servicios otra vez</a>
+      <a href="/contacto">Contacto</a>
+    </nav></header>
+    <a href="/carta.pdf">Carta</a> <a href="/wp-admin/">Admin</a> <a href="/carrito">Carrito</a>
+    <a href="/buscar?q=x">Buscar</a> <a href="https://facebook.com/minegocio">FB</a>
+    <a href="tel:+34600000000">Llamar</a> <a href="http://[malo">Roto</a>
+    <a href="/equipo#fotos">Equipo</a>`;
+
+  it('prioriza el menú y descarta ficheros, zonas privadas, parámetros y repetidas', () => {
+    expect(
+      findInternalPages(html, 'https://minegocio.es/', 10, ['https://minegocio.es/contacto']),
+    ).toEqual([
+      'https://minegocio.es/servicios/',
+      'https://www.minegocio.es/tienda',
+      'https://minegocio.es/blog/entrada-1',
+      'https://minegocio.es/equipo',
+    ]);
+  });
+
+  it('respeta el máximo', () => {
+    expect(findInternalPages(html, 'https://minegocio.es/', 2)).toHaveLength(2);
   });
 });

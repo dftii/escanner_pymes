@@ -25,8 +25,12 @@ type Page = Pick<SafeResponse, 'url' | 'body' | 'setCookies' | 'redirects'>;
  */
 export function checkPrivacy(home: Page, pages: readonly Page[] = [home]): Finding[] {
   const $ = cheerio.load(home.body);
-  const cookies = collectCookies(home);
-  const scripts = analyzeScripts($);
+  const all = pages.includes(home) ? pages : [home, ...pages];
+  const cookies = collectCookies(all);
+  const scripts = mergeScripts([
+    analyzeScripts($),
+    ...all.filter((p) => p !== home).map((p) => analyzeScripts(cheerio.load(p.body))),
+  ]);
   const cmp = detectCmp(home.body, $);
 
   const needsConsent =
@@ -74,8 +78,12 @@ export function parseSetCookie(header: string): ServerCookie | null {
   };
 }
 
-function collectCookies(home: Page): ServerCookie[] {
-  const headers = [...home.redirects.flatMap((r) => r.setCookies), ...home.setCookies];
+/** Cookies del servidor en todas las páginas revisadas (y sus redirecciones). */
+function collectCookies(pages: readonly Page[]): ServerCookie[] {
+  const headers = pages.flatMap((p) => [
+    ...p.redirects.flatMap((r) => r.setCookies),
+    ...p.setCookies,
+  ]);
   const byName = new Map<string, ServerCookie>();
   for (const header of headers) {
     const cookie = parseSetCookie(header);
@@ -190,6 +198,17 @@ export function analyzeScripts($: cheerio.CheerioAPI): ScriptScan {
 
   for (const name of active) blocked.delete(name);
   return { active: [...active], blocked: [...blocked], consentModeDenied };
+}
+
+/** Junta los scripts de varias páginas: activo en alguna gana a bloqueado. */
+export function mergeScripts(scans: readonly ScriptScan[]): ScriptScan {
+  const active = new Set(scans.flatMap((s) => s.active));
+  const blocked = new Set(scans.flatMap((s) => s.blocked).filter((n) => !active.has(n)));
+  return {
+    active: [...active],
+    blocked: [...blocked],
+    consentModeDenied: scans.some((s) => s.consentModeDenied),
+  };
 }
 
 function matchesTracker(tracker: TrackerRule, src: string, code: string): boolean {

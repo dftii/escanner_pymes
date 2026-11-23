@@ -85,3 +85,51 @@ export function findContactPages(html: string, pageUrl: string, max = 3): string
   });
   return [...pages];
 }
+
+/** Enlaces que no son páginas de contenido: ficheros, zonas privadas o acciones. */
+const SKIP_PATH_RE =
+  /\.(pdf|jpe?g|png|gif|webp|svg|zip|rar|docx?|xlsx?|pptx?|mp[34]|mov|avi|xml|json|txt|css|js)$|\/(wp-admin|wp-login|admin|login|logout|signin|sign-in|register|registro|mi-cuenta|my-account|account|cuenta|cart|carrito|checkout|finalizar-compra|feed|wp-json|cdn-cgi)(\/|$)/i;
+
+/**
+ * Otras páginas internas de contenido (menú, servicios, tienda…) para revisar
+ * scripts, cookies y formularios más allá de la home. Prioriza los enlaces de
+ * `<nav>` y `<header>`, del mismo sitio, sin parámetros ni repetidos, y sin las
+ * que ya estén en `exclude`. Como mucho `max`.
+ */
+export function findInternalPages(
+  html: string,
+  pageUrl: string,
+  max = 4,
+  exclude: readonly string[] = [],
+): string[] {
+  const $ = cheerio.load(html);
+  const base = new URL(pageUrl);
+  const site = base.hostname.replace(/^www\./, '');
+  const seen = new Set<string>([normalize(base), ...exclude.map((u) => normalize(new URL(u)))]);
+  const pages: string[] = [];
+
+  const links = [...$('nav a[href], header a[href]'), ...$('a[href]')];
+  for (const el of links) {
+    if (pages.length >= max) break;
+    let url: URL;
+    try {
+      url = new URL($(el).attr('href') ?? '', base);
+    } catch {
+      continue;
+    }
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') continue;
+    if (url.hostname.replace(/^www\./, '') !== site) continue;
+    if (url.search || SKIP_PATH_RE.test(url.pathname)) continue;
+    url.hash = '';
+    const key = normalize(url);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    pages.push(url.href);
+  }
+  return pages;
+}
+
+/** Misma página aunque cambie `www.`, el esquema o la barra final. */
+function normalize(url: URL): string {
+  return `${url.hostname.replace(/^www\./, '')}${url.pathname.replace(/\/+$/, '')}`;
+}

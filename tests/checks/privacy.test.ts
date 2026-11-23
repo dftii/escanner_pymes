@@ -7,6 +7,7 @@ import {
   classifyCookie,
   detectCmp,
   findLegalLinks,
+  mergeScripts,
   parseSetCookie,
 } from '@/lib/checks/privacy';
 import type { Finding } from '@/lib/types';
@@ -315,5 +316,29 @@ describe('piezas sueltas', () => {
       privacy: 'https://minegocio.es/legal',
       cookies: null,
     });
+  });
+});
+
+describe('checkPrivacy en varias páginas', () => {
+  it('detecta scripts y cookies que solo están en páginas interiores', () => {
+    const home = page(`<main>Hola</main>${FOOTER}`);
+    const interior = page(
+      '<script src="https://connect.facebook.net/en_US/fbevents.js"></script>',
+      ['_fbp=fb.1.123; Path=/'],
+      'https://minegocio.es/tienda',
+    );
+    const f = Object.fromEntries(checkPrivacy(home, [home, interior]).map((x) => [x.id, x]));
+    expect(f['privacy.trackers']!.status).toBe('fail');
+    expect(f['privacy.cookies']!.status).toBe('fail');
+    expect(f['privacy.cookies']!.detail).toContain('_fbp');
+  });
+
+  it('un script activo en una página gana al mismo bloqueado en otra', () => {
+    expect(
+      mergeScripts([
+        { active: [], blocked: ['Hotjar', 'Google Analytics'], consentModeDenied: false },
+        { active: ['Hotjar'], blocked: [], consentModeDenied: true },
+      ]),
+    ).toEqual({ active: ['Hotjar'], blocked: ['Google Analytics'], consentModeDenied: true });
   });
 });

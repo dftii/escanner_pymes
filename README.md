@@ -11,7 +11,7 @@ Herramienta web para que un negocio local escriba su dominio y reciba, en menos 
 
 ## Principios
 
-- **Solo análisis pasivo**: lo mismo que vería un navegador. Sin escaneo de puertos, sin fuerza bruta y como mucho 5 páginas por dominio.
+- **Solo análisis pasivo**: lo mismo que vería un navegador. Sin escaneo de puertos, sin fuerza bruta y como mucho 8 páginas por dominio.
 - **Protección contra SSRF**: se rechazan IPs privadas, de loopback, link-local y de metadatos, también tras cada redirección.
 - **Privacidad**: no se guardan los dominios analizados ni las IPs más allá del rate limit, y no hay cookies que no sean técnicas.
 
@@ -154,7 +154,7 @@ Cada hallazgo tiene `id`, `category`, `status` (`ok`, `warning`, `fail`, `info`,
 | `email.spf`     | Si existe y es único, el `all` final (`-all`, `~all`, `?all`, `+all`) y las consultas DNS que hace (máximo 10, siguiendo `include` y `redirect`) |
 | `email.dmarc`   | Si existe, su política (`none`, `quarantine`, `reject`), si se aplica al 100 % y si pide informes (`rua`)                                        |
 | `email.dkim`    | Firma DKIM con los selectores habituales; si no aparece es `info`, porque puede usar otro selector                                               |
-| `email.exposed` | Emails legibles por robots en la home y en hasta 3 páginas de contacto, aviso legal o privacidad                                                 |
+| `email.exposed` | Emails legibles por robots en la home y en las páginas extra revisadas (ver abajo)                                                               |
 
 En `email.exposed` se tiene en cuenta que la LSSI obliga a publicar un email de contacto: un buzón genérico del dominio (info@, contacto@) es `info`, y las direcciones personales o de Gmail/Hotmail son `warning`. Las direcciones protegidas por Cloudflare cuentan como protegidas.
 
@@ -181,7 +181,7 @@ El informe incluye el aviso de que estos resultados son orientativos y no sustit
 
 Si el navegador no puede abrir la web o está ocupado (como mucho 2 a la vez por instancia), el hallazgo sale como `error` y no cuenta para la nota. Cada análisis usa un contexto vacío que se cierra al terminar, sin service workers, descargas ni permisos; las ventanas emergentes se cierran y los diálogos se descartan.
 
-Las páginas extra (contacto, aviso legal, privacidad) se descargan una sola vez y las comparten los checks de correo y de RGPD.
+Además de la home se revisan hasta 3 páginas de contacto, aviso legal o privacidad y hasta 4 páginas de contenido enlazadas desde el menú (`findInternalPages`: sin ficheros, zonas privadas, carrito ni URLs con parámetros), 8 como mucho. Se descargan una sola vez y las comparten los checks de correo y de RGPD: los emails visibles, los formularios, los scripts de seguimiento y las cookies del servidor se buscan en todas ellas. El banner y los enlaces legales se miran en la home.
 
 La página de inicio se descarga una sola vez y la comparten todos los checks. Se acepta un certificado inválido solo para leerla, de modo que una web con el SSL roto también recibe el análisis de cabeceras.
 
