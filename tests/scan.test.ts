@@ -126,3 +126,22 @@ describe('runScan', () => {
     expect(result.findings.some((f) => f.category === 'headers')).toBe(true);
   });
 });
+
+describe('runScan con progreso', () => {
+  it('avisa una vez por categoría con sus hallazgos', async () => {
+    const seen: Array<[string, string[]]> = [];
+    const result = await runScan(
+      'minegocio.es',
+      {
+        now: () => NOW,
+        dns,
+        probe,
+        fetch: fetchFrom({ 'https://minegocio.es/': page('https://minegocio.es/') }),
+      },
+      (category, findings) => seen.push([category, [...new Set(findings.map((f) => f.category))]]),
+    );
+    expect(seen.map(([c]) => c).sort()).toEqual(['email', 'headers', 'privacy', 'ssl']);
+    for (const [category, cats] of seen) expect(cats).toEqual([category]);
+    expect(result.findings.length).toBeGreaterThan(10);
+  });
+});

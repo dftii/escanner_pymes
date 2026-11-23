@@ -82,14 +82,42 @@ Sin Upstash el límite (5 análisis cada 10 minutos por IP) se guarda en la memo
 
 `POST /api/scan` con `{ "domain": "minegocio.es", "consent": true }`.
 
-| Respuesta | Cuándo                                                           |
-| --------- | ---------------------------------------------------------------- |
-| `200`     | `{ domain, scannedAt, finalUrl, durationMs, findings, notices }` |
-| `400`     | Dominio no válido, IP, dominio interno o sin consentimiento      |
-| `404`     | El dominio no existe                                             |
-| `429`     | Límite superado (cabecera `Retry-After`)                         |
+| Respuesta | Cuándo                                                      |
+| --------- | ----------------------------------------------------------- |
+| `200`     | Flujo NDJSON con el progreso (ver abajo)                    |
+| `400`     | Dominio no válido, IP, dominio interno o sin consentimiento |
+| `404`     | El dominio no existe                                        |
+| `429`     | Límite superado (cabecera `Retry-After`)                    |
 
-Los errores siempre tienen la forma `{ error: { code, message } }`, con `message` en español y listo para mostrar.
+Los errores previos al análisis siempre tienen la forma `{ error: { code, message } }`, con `message` en español y listo para mostrar.
+
+Con `200` la respuesta es `application/x-ndjson`, con un evento JSON por línea (`src/lib/scanStream.ts`), para mostrar el progreso real:
+
+```
+{"type":"category","category":"ssl","findings":[…]}
+{"type":"category","category":"headers","findings":[…]}
+…
+{"type":"done","result":{"domain","scannedAt","finalUrl","durationMs","findings","notices"}}
+```
+
+## Puntuación
+
+`src/lib/scoring.ts` da una nota de la A a la F por categoría y otra global:
+
+- Cada hallazgo puntúa: `ok` 100, `warning` 50, `fail` 0 e `info` 100 (80 si propone una mejora). Los `error` no cuentan.
+- Cada comprobación tiene un peso. Las críticas (peso 3 o más, como certificado caducado, SPF, DMARC o cookies sin consentimiento) limitan la categoría a una **D** si fallan.
+- Si no hay datos de al menos la mitad del peso de una categoría, se muestra "sin datos" en lugar de una nota engañosa.
+- La nota global pondera: SSL 30 %, correo 25 %, RGPD 25 % y cabeceras 20 %.
+- Tramos: A ≥ 90 · B ≥ 75 · C ≥ 60 · D ≥ 45 · E ≥ 30 · F < 30.
+
+## Seguridad de la propia web
+
+- **CSP estricta con nonce** por petición (`src/middleware.ts`, `src/lib/csp.ts`): `script-src 'self' 'nonce-…' 'strict-dynamic'` sin `unsafe-inline`, `frame-ancestors 'none'` y `object-src 'none'`. La API lleva `default-src 'none'`.
+- HSTS, `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy` y sin `X-Powered-By`.
+- Sin cookies, sin `localStorage` y sin scripts de terceros.
+- `tests/csp.test.ts` y `tests/selfscan.test.ts` comprueban que la web aprueba sus propios checks de cabeceras y de RGPD.
+
+> **Antes de publicar:** completa los datos marcados en amarillo (titular, NIF, dirección, email, hosting) en `/aviso-legal` y `/privacidad`.
 
 ## Comprobaciones
 
@@ -156,5 +184,5 @@ Todas las peticiones salientes pasan por `src/lib/net/safeFetch.ts`:
 - [x] PR 3: checks de SSL y de cabeceras
 - [x] PR 4: check de correo (DNS y emails expuestos)
 - [x] PR 5: check de cookies y RGPD (fase 1)
-- [ ] PR 6: puntuación, interfaz completa y vista imprimible
+- [x] PR 6: puntuación, interfaz completa y vista imprimible
 - [ ] PR 7 (opcional): navegador headless para cookies (fase 2)

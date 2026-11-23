@@ -4,6 +4,7 @@ import { resolvePublic } from '@/lib/net/lookup';
 import { clientIp, getRateLimiter, hashKey } from '@/lib/rateLimit';
 import { runScan } from '@/lib/scan';
 import { parseScanRequest } from '@/lib/scanRequest';
+import { encodeEvent, NDJSON, type ScanEvent } from '@/lib/scanStream';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -12,8 +13,10 @@ export const maxDuration = 60;
 /**
  * POST /api/scan  { domain: string, consent: true }
  *
- * Valida, aplica el rate limit, comprueba que el dominio existe y es público y
- * ejecuta los checks (SSL y cabeceras; correo y cookies llegan en los PR 4-5).
+ * Valida, aplica el rate limit y comprueba que el dominio existe y es público.
+ * Los errores de esa fase son JSON `{ error: { code, message } }` con su código
+ * HTTP. Después responde 200 con un flujo NDJSON (ver `scanStream.ts`): un
+ * evento `category` por categoría terminada y un `done` con el informe.
  * No se registra el dominio ni la IP en ningún log.
  */
 export async function POST(request: Request) {
@@ -36,10 +39,32 @@ export async function POST(request: Request) {
     }
 
     await resolvePublic(domain);
-    const result = await runScan(domain);
 
-    return NextResponse.json(result, {
-      headers: { 'cache-control': 'no-store', 'x-ratelimit-remaining': String(rl.remaining) },
+    // A partir de aquí la respuesta es un flujo NDJSON con el progreso real.
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        const send = (event: ScanEvent) => controller.enqueue(encoder.encode(encodeEvent(event)));
+        try {
+          const result = await runScan(domain, {}, (category, findings) =>
+            send({ type: 'category', category, findings }),
+          );
+          send({ type: 'done', result });
+        } catch {
+          send({ type: 'error', message: 'Ha ocurrido un error inesperado. Inténtalo de nuevo.' });
+        } finally {
+          controller.close();
+        }
+      },
+    });
+
+    return new Response(stream, {
+      headers: {
+        'content-type': NDJSON,
+        'cache-control': 'no-store',
+        'x-content-type-options': 'nosniff',
+        'x-ratelimit-remaining': String(rl.remaining),
+      },
     });
   } catch (error) {
     if (isScanError(error)) return errorResponse(error);
