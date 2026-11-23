@@ -267,3 +267,41 @@ describe('dnsClient helpers', () => {
     await expect(mxRecords(dns, 'a.es')).rejects.toMatchObject({ code: 'ETIMEOUT' });
   });
 });
+
+describe('DMARC heredado en subdominios', () => {
+  const SUB = `tienda.${D}`;
+
+  it('un subdominio sin registro usa el del dominio principal (sp= si existe)', async () => {
+    const f = await run(withTxt({ [`_dmarc.${D}`]: 'v=DMARC1; p=reject; sp=quarantine' }), SUB);
+    expect(f['email.dmarc']).toMatchObject({
+      status: 'ok',
+      title: `DMARC activo en modo "quarantine" (heredada de ${D})`,
+    });
+    expect(f['email.dmarc']!.evidence).toMatchObject({ inheritedFrom: D });
+  });
+
+  it('sin sp= hereda p=, y avisa si es none', async () => {
+    const f = await run(withTxt({ [`_dmarc.${D}`]: 'v=DMARC1; p=none' }), SUB);
+    expect(f['email.dmarc']).toMatchObject({ status: 'warning' });
+    expect(f['email.dmarc']!.title).toBe(
+      `DMARC solo observa ("p=none") (heredada de ${D}) y no bloquea nada`,
+    );
+    const g = await run(withTxt({ [`_dmarc.${D}`]: 'v=DMARC1; p=reject; sp=none' }), SUB);
+    expect(g['email.dmarc']!.title).toContain('"sp=none"');
+  });
+
+  it('el registro propio del subdominio manda', async () => {
+    const f = await run(
+      withTxt({ [`_dmarc.${SUB}`]: 'v=DMARC1; p=none', [`_dmarc.${D}`]: 'v=DMARC1; p=reject' }),
+      SUB,
+    );
+    expect(f['email.dmarc']).toMatchObject({ status: 'warning' });
+    expect(f['email.dmarc']!.evidence).not.toHaveProperty('inheritedFrom');
+  });
+
+  it('falla si tampoco hay registro en el dominio principal', async () => {
+    const zone: FakeZone = { ...GOOD, txt: { [D]: 'v=spf1 -all' } };
+    const f = await run(zone, SUB);
+    expect(f['email.dmarc']).toMatchObject({ status: 'fail', title: 'Falta la política DMARC' });
+  });
+});

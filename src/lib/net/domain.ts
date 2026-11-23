@@ -86,3 +86,58 @@ export function normalizeDomain(input: string): string {
 function invalid(message: string): ScanError {
   return new ScanError('invalid_domain', message);
 }
+
+/**
+ * Sufijos públicos de dos niveles más habituales (España, Latinoamérica,
+ * Reino Unido…). Lista corta a propósito: basta para no confundir
+ * `minegocio.com.es` con un subdominio.
+ */
+const TWO_LEVEL_SUFFIXES = new Set([
+  'com.es',
+  'org.es',
+  'nom.es',
+  'gob.es',
+  'edu.es',
+  'co.uk',
+  'org.uk',
+  'ac.uk',
+  'gov.uk',
+  'com.ar',
+  'com.mx',
+  'org.mx',
+  'gob.mx',
+  'com.co',
+  'com.pe',
+  'com.br',
+  'com.cl',
+  'com.uy',
+  'com.ve',
+  'com.ec',
+  'com.bo',
+  'com.py',
+  'com.do',
+  'com.gt',
+  'com.sv',
+  'com.hn',
+  'com.ni',
+  'com.pa',
+  'com.cr',
+  'com.cu',
+  'com.au',
+  'co.nz',
+  'co.jp',
+  'co.za',
+  'com.tr',
+  'com.pt',
+]);
+
+/**
+ * Dominio organizativo (el que se registra): `tienda.minegocio.es` →
+ * `minegocio.es`; `www.minegocio.com.es` → `minegocio.com.es`.
+ */
+export function organizationalDomain(domain: string): string {
+  const labels = domain.toLowerCase().replace(/\.$/, '').split('.');
+  const two = labels.slice(-2).join('.');
+  const take = TWO_LEVEL_SUFFIXES.has(two) ? 3 : 2;
+  return labels.slice(-take).join('.');
+}

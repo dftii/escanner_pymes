@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeDomain } from '@/lib/net/domain';
+import { normalizeDomain, organizationalDomain } from '@/lib/net/domain';
 import { ScanError } from '@/lib/net/errors';
 
 const codeOf = (input: string) => {
@@ -52,4 +52,16 @@ describe('normalizeDomain', () => {
   ])('rechaza %j con %s', (input, code) => {
     expect(codeOf(input)).toBe(code);
   });
+});
+
+describe('organizationalDomain', () => {
+  it.each([
+    ['minegocio.es', 'minegocio.es'],
+    ['www.minegocio.es', 'minegocio.es'],
+    ['tienda.eu.minegocio.es', 'minegocio.es'],
+    ['minegocio.com.es', 'minegocio.com.es'],
+    ['www.minegocio.co.uk', 'minegocio.co.uk'],
+    ['expired.badssl.com', 'badssl.com'],
+    ['MiNegocio.ES.', 'minegocio.es'],
+  ])('%s → %s', (input, expected) => expect(organizationalDomain(input)).toBe(expected));
 });

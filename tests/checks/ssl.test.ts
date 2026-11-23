@@ -265,3 +265,35 @@ describe('checkHttpRedirect', () => {
     ).rejects.toMatchObject({ code: 'timeout' });
   });
 });
+
+describe('checkSsl en subdominios', () => {
+  it('no comprueba la variante www de un subdominio', async () => {
+    const probed: string[] = [];
+    const f = byId(
+      await checkSsl('tienda.minegocio.es', {
+        now: () => NOW,
+        fetch: redirectingFetch(),
+        probe: async (host) => {
+          probed.push(host);
+          return ok(cert(['tienda.minegocio.es']));
+        },
+      }),
+    );
+    expect(probed).toEqual(['tienda.minegocio.es']);
+    expect(f['ssl.www']).toBeUndefined();
+    expect(f['ssl.expiry']).toBeDefined();
+  });
+
+  it('sí la comprueba en un dominio .com.es', async () => {
+    const probed: string[] = [];
+    await checkSsl('minegocio.com.es', {
+      now: () => NOW,
+      fetch: redirectingFetch(),
+      probe: async (host) => {
+        probed.push(host);
+        return ok(cert(['minegocio.com.es', 'www.minegocio.com.es']));
+      },
+    });
+    expect(probed.sort()).toEqual(['minegocio.com.es', 'www.minegocio.com.es']);
+  });
+});

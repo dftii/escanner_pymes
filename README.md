@@ -141,27 +141,27 @@ Cada hallazgo tiene `id`, `category`, `status` (`ok`, `warning`, `fail`, `info`,
 
 **Certificado SSL** (`src/lib/checks/ssl.ts`)
 
-| id             | Qué revisa                                                                     |
-| -------------- | ------------------------------------------------------------------------------ |
-| `ssl.no_https` | La web no acepta conexiones seguras                                            |
-| `ssl.trust`    | Certificado de confianza (o `ssl.untrusted` / `ssl.chain` si no lo es)         |
-| `ssl.expiry`   | Días hasta la caducidad: fallo si quedan 7 o menos, aviso si quedan 21 o menos |
-| `ssl.hostname` | El certificado incluye el dominio                                              |
-| `ssl.www`      | La versión con o sin `www` también tiene un certificado válido                 |
-| `ssl.protocol` | TLS 1.2 o 1.3 (fallo con TLS 1.0/1.1)                                          |
-| `ssl.redirect` | `http://` lleva a `https://`                                                   |
+| id             | Qué revisa                                                                                                       |
+| -------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `ssl.no_https` | La web no acepta conexiones seguras                                                                              |
+| `ssl.trust`    | Certificado de confianza (o `ssl.untrusted` / `ssl.chain` si no lo es)                                           |
+| `ssl.expiry`   | Días hasta la caducidad: fallo si quedan 7 o menos, aviso si quedan 21 o menos                                   |
+| `ssl.hostname` | El certificado incluye el dominio                                                                                |
+| `ssl.www`      | La versión con o sin `www` también tiene un certificado válido (solo en el dominio principal, no en subdominios) |
+| `ssl.protocol` | TLS 1.2 o 1.3 (fallo con TLS 1.0/1.1)                                                                            |
+| `ssl.redirect` | `http://` lleva a `https://`                                                                                     |
 
 **Cabeceras de seguridad** (`src/lib/checks/headers.ts`): HSTS (con un mínimo de 6 meses), CSP (avisa si permite `'unsafe-inline'` sin nonce), `X-Content-Type-Options`, protección frente a incrustación (`X-Frame-Options` o `frame-ancestors`), `Referrer-Policy`, `Permissions-Policy` y cabeceras que revelan versiones (`Server`, `X-Powered-By`…).
 
 **Correo y suplantación** (`src/lib/checks/emailDns.ts`, `emailExposure.ts`). Se revisa el dominio sin `www.`:
 
-| id              | Qué revisa                                                                                                                                       |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `email.mx`      | Si el dominio recibe correo y con qué proveedor (Google Workspace, Microsoft 365, OVH, IONOS…)                                                   |
-| `email.spf`     | Si existe y es único, el `all` final (`-all`, `~all`, `?all`, `+all`) y las consultas DNS que hace (máximo 10, siguiendo `include` y `redirect`) |
-| `email.dmarc`   | Si existe, su política (`none`, `quarantine`, `reject`), si se aplica al 100 % y si pide informes (`rua`)                                        |
-| `email.dkim`    | Firma DKIM con los selectores habituales; si no aparece es `info`, porque puede usar otro selector                                               |
-| `email.exposed` | Emails legibles por robots en la home y en las páginas extra revisadas (ver abajo)                                                               |
+| id              | Qué revisa                                                                                                                                                                                            |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `email.mx`      | Si el dominio recibe correo y con qué proveedor (Google Workspace, Microsoft 365, OVH, IONOS…)                                                                                                        |
+| `email.spf`     | Si existe y es único, el `all` final (`-all`, `~all`, `?all`, `+all`) y las consultas DNS que hace (máximo 10, siguiendo `include` y `redirect`)                                                      |
+| `email.dmarc`   | Si existe, su política (`none`, `quarantine`, `reject`), si se aplica al 100 % y si pide informes (`rua`). Un subdominio sin registro propio hereda el del dominio principal (`sp=` o `p=`, RFC 7489) |
+| `email.dkim`    | Firma DKIM con los selectores habituales; si no aparece es `info`, porque puede usar otro selector                                                                                                    |
+| `email.exposed` | Emails legibles por robots en la home y en las páginas extra revisadas (ver abajo)                                                                                                                    |
 
 En `email.exposed` se tiene en cuenta que la LSSI obliga a publicar un email de contacto: un buzón genérico del dominio (info@, contacto@) es `info`, y las direcciones personales o de Gmail/Hotmail son `warning`. Las direcciones protegidas por Cloudflare cuentan como protegidas.
 

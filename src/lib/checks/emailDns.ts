@@ -2,6 +2,7 @@ import type { MxRecord } from 'node:dns';
 import { fixFor } from '../data/remediation';
 import { errorFinding } from '../findings';
 import { createDnsClient, mxRecords, txtRecords, type DnsClient } from '../net/dnsClient';
+import { organizationalDomain } from '../net/domain';
 import type { Finding } from '../types';
 
 const base = { category: 'email' } as const;
@@ -285,10 +286,16 @@ export function parseDmarc(record: string): Record<string, string> {
   return tags;
 }
 
+const dmarcRecords = async (dns: DnsClient, name: string) =>
+  (await txtRecords(dns, `_dmarc.${name}`)).filter((r) => /^v=DMARC1\s*(;|$)/i.test(r.trim()));
+
 async function checkDmarc(domain: string, dns: DnsClient): Promise<Finding> {
-  const records = (await txtRecords(dns, `_dmarc.${domain}`)).filter((r) =>
-    /^v=DMARC1\s*(;|$)/i.test(r.trim()),
-  );
+  let records = await dmarcRecords(dns, domain);
+  // RFC 7489 §6.6.3: un subdominio sin registro propio hereda el del dominio
+  // principal, con su política para subdominios (sp=) si la tiene.
+  const org = organizationalDomain(domain);
+  const inherited = records.length === 0 && org !== domain;
+  if (inherited) records = await dmarcRecords(dns, org);
   if (records.length === 0) {
     return {
       ...base,
@@ -306,7 +313,7 @@ async function checkDmarc(domain: string, dns: DnsClient): Promise<Finding> {
       id: 'email.dmarc',
       status: 'fail',
       title: 'Hay varios registros DMARC y eso lo invalida',
-      detail: `Solo puede haber uno en _dmarc.${domain}; ahora hay ${records.length}.`,
+      detail: `Solo puede haber uno en _dmarc.${inherited ? org : domain}; ahora hay ${records.length}.`,
       risk: 'Los servidores de correo ignoran la política: es como no tenerla.',
       fix: fixFor('email.dmarc'),
       evidence: { records },
@@ -314,12 +321,19 @@ async function checkDmarc(domain: string, dns: DnsClient): Promise<Finding> {
   }
   const record = records[0]!;
   const tags = parseDmarc(record);
-  const policy = (tags.p ?? '').toLowerCase();
+  const policy = ((inherited ? (tags.sp ?? tags.p) : tags.p) ?? '').toLowerCase();
+  const from = inherited ? ` (heredada de ${org})` : '';
   const pct = tags.pct ? Number(tags.pct) : 100;
   const reports = tags.rua
     ? 'Recibes informes en ' + tags.rua.replace(/mailto:/gi, '') + '.'
     : 'No pides informes (rua): no sabrás si alguien intenta suplantarte.';
-  const evidence = { record, policy, pct, rua: tags.rua ?? null };
+  const evidence = {
+    record,
+    policy,
+    pct,
+    rua: tags.rua ?? null,
+    ...(inherited ? { inheritedFrom: org } : {}),
+  };
 
   if (policy === 'reject' || policy === 'quarantine') {
     const partial = pct < 100;
@@ -328,8 +342,8 @@ async function checkDmarc(domain: string, dns: DnsClient): Promise<Finding> {
       id: 'email.dmarc',
       status: partial ? 'warning' : 'ok',
       title: partial
-        ? `DMARC en "${policy}", pero solo para el ${pct} % de los correos`
-        : `DMARC activo en modo "${policy}"`,
+        ? `DMARC en "${policy}"${from}, pero solo para el ${pct} % de los correos`
+        : `DMARC activo en modo "${policy}"${from}`,
       detail: `${
         policy === 'reject'
           ? 'Los correos falsos en tu nombre se rechazan.'
@@ -345,7 +359,7 @@ async function checkDmarc(domain: string, dns: DnsClient): Promise<Finding> {
       ...base,
       id: 'email.dmarc',
       status: 'warning',
-      title: 'DMARC solo observa ("p=none") y no bloquea nada',
+      title: `DMARC solo observa ("${inherited && tags.sp ? 'sp' : 'p'}=none")${from} y no bloquea nada`,
       detail: `La política está en modo de prueba: los correos falsos siguen llegando. ${reports}`,
       risk: 'Tu dominio se sigue pudiendo suplantar.',
       fix: fixFor('email.dmarc_none'),

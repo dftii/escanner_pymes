@@ -1,6 +1,7 @@
 import { checkServerIdentity, type PeerCertificate } from 'node:tls';
 import { fixFor } from '../data/remediation';
 import { errorFinding } from '../findings';
+import { organizationalDomain } from '../net/domain';
 import { isScanError } from '../net/errors';
 import { safeFetch } from '../net/safeFetch';
 import type { Finding } from '../types';
@@ -33,11 +34,15 @@ const base = { category: 'ssl' } as const;
 export async function checkSsl(domain: string, deps: SslDeps = {}): Promise<Finding[]> {
   const probe = deps.probe ?? ((host: string) => probeTls(host));
   const now = deps.now?.() ?? new Date();
-  const variant = domain.startsWith('www.') ? domain.slice(4) : `www.${domain}`;
+  // La variante con o sin www solo tiene sentido en el dominio principal:
+  // en `tienda.minegocio.es` nadie escribe `www.tienda.minegocio.es`.
+  const apex = domain.replace(/^www\./, '');
+  const variant =
+    organizationalDomain(apex) !== apex ? null : domain.startsWith('www.') ? apex : `www.${domain}`;
 
   const [main, alt, redirect] = await Promise.allSettled([
     probe(domain),
-    probe(variant),
+    variant ? probe(variant) : Promise.reject(new Error('sin variante')),
     checkHttpRedirect(domain, deps.fetch ?? safeFetch),
   ]);
 
@@ -60,7 +65,7 @@ export async function checkSsl(domain: string, deps: SslDeps = {}): Promise<Find
   if (trust) findings.push(trust);
   findings.push(expiryFinding(cert, now));
   findings.push(hostnameFinding(domain, cert));
-  const www = wwwFinding(variant, alt);
+  const www = variant ? wwwFinding(variant, alt) : null;
   if (www) findings.push(www);
   findings.push(protocolFinding(protocol));
   findings.push(...settled(redirect));
