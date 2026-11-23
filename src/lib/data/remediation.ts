@@ -79,6 +79,48 @@ export const REMEDIATION = {
     'Apache: "ServerTokens Prod" y "ServerSignature Off". nginx: "server_tokens off;". PHP: "expose_php = Off" en php.ini.',
     'En hosting compartido, pídeselo al proveedor o usa un plugin de seguridad que quite "X-Powered-By".',
   ],
+
+  // ─── Correo ─────────────────────────────────────────────────────────────
+  'email.spf': [
+    'Crea un registro TXT en el dominio (no en "www") con los servidores que envían tu correo y que termine en "-all" o "~all".',
+    'Google Workspace: v=spf1 include:_spf.google.com ~all · Microsoft 365: v=spf1 include:spf.protection.outlook.com -all',
+    'Correo del hosting (cPanel): "Correo electrónico" → "Entregabilidad del correo" → "Reparar" en SPF. Plesk: "Configuración DNS" del dominio.',
+    'Si el dominio no envía correo: v=spf1 -all',
+  ],
+  'email.spf_multiple': [
+    'Junta todos los registros que empiezan por "v=spf1" en uno solo, con todos los "include" y un único "-all" o "~all" al final.',
+    'Ejemplo: v=spf1 include:_spf.google.com include:servers.mcsv.net ~all',
+  ],
+  'email.spf_lookups': [
+    'Quita los "include" de servicios que ya no uses (antiguos boletines, CRM, hosting anterior).',
+    'Sustituye "a" y "mx" por las IP concretas (ip4:…) si son pocas.',
+    'Si aun así no llega, un servicio de "SPF flattening" puede resumirlo; pide ayuda a quien gestione tu dominio.',
+  ],
+  'email.spf_softfail': [
+    'Cuando DMARC esté en "quarantine" o "reject", "~all" es suficiente.',
+    'Si no tienes DMARC, cambia el final a "-all" una vez comprobado que todos tus envíos legítimos están incluidos.',
+  ],
+  'email.dmarc': [
+    'Crea un registro TXT en "_dmarc.tudominio.es" con: v=DMARC1; p=none; rua=mailto:dmarc@tudominio.es',
+    'Revisa los informes 2-4 semanas y, si tu correo legítimo pasa, sube a "p=quarantine" y después a "p=reject".',
+    'Google Workspace, Microsoft 365, cPanel ("Entregabilidad del correo") y la mayoría de paneles DNS permiten añadirlo en minutos.',
+  ],
+  'email.dmarc_none': [
+    'Revisa los informes DMARC (servicios gratuitos como dmarcian o Postmark los resumen) para confirmar que tus envíos legítimos pasan.',
+    'Cambia la política a "p=quarantine" y, tras unas semanas sin problemas, a "p=reject".',
+    'Quita "pct=" o ponlo a 100 para que se aplique a todos los correos.',
+  ],
+  'email.dkim': [
+    'Activa la firma DKIM en tu proveedor de correo y publica el registro que te indique.',
+    'Google Workspace: Consola de administración → Gmail → "Autenticar correo electrónico". Microsoft 365: Defender → "DKIM".',
+    'cPanel: "Correo electrónico" → "Entregabilidad del correo". Plesk: "Configuración de correo" → "Usar DKIM".',
+  ],
+  'email.exposed': [
+    'Usa un formulario de contacto en lugar de mostrar la dirección, o muestra solo un buzón genérico (info@, contacto@).',
+    'Cloudflare (plan gratis): activa "Email Address Obfuscation" en "Scrape Shield".',
+    'WordPress: plugins como "Email Address Encoder" ocultan las direcciones a los robots sin que lo noten tus clientes.',
+    'Evita publicar direcciones personales (nombre.apellido@) o de Gmail/Hotmail: usa una de tu dominio.',
+  ],
 } as const satisfies Record<string, readonly string[]>;
 
 export type RemediationId = keyof typeof REMEDIATION;
