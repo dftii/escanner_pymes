@@ -65,14 +65,42 @@ npm run build
 
 Variables de entorno (se irán añadiendo en cada hito):
 
-| Variable          | Uso                                                  | Por defecto |
-| ----------------- | ---------------------------------------------------- | ----------- |
-| `ENABLE_HEADLESS` | Activa el análisis de cookies con navegador (fase 2) | `false`     |
+| Variable                   | Uso                                                            | Por defecto           |
+| -------------------------- | -------------------------------------------------------------- | --------------------- |
+| `UPSTASH_REDIS_REST_URL`   | Rate limit compartido entre instancias (opcional, plan gratis) | sin definir → memoria |
+| `UPSTASH_REDIS_REST_TOKEN` | Token de Upstash                                               | sin definir           |
+| `RATE_LIMIT_SALT`          | Sal para el hash de la IP (la IP nunca se guarda en claro)     | derivada / aleatoria  |
+| `ENABLE_HEADLESS`          | Activa el análisis de cookies con navegador (fase 2)           | `false`               |
+
+Sin Upstash el límite (5 análisis cada 10 minutos por IP) se guarda en la memoria de cada instancia de Vercel: funciona, pero no se comparte entre instancias.
+
+## API
+
+`POST /api/scan` con `{ "domain": "minegocio.es", "consent": true }`.
+
+| Respuesta | Cuándo                                                      |
+| --------- | ----------------------------------------------------------- |
+| `200`     | `{ domain, findings }` (los checks llegan en los PR 3-5)    |
+| `400`     | Dominio no válido, IP, dominio interno o sin consentimiento |
+| `404`     | El dominio no existe                                        |
+| `429`     | Límite superado (cabecera `Retry-After`)                    |
+
+Los errores siempre tienen la forma `{ error: { code, message } }`, con `message` en español y listo para mostrar.
+
+## Protección contra SSRF
+
+Todas las peticiones salientes pasan por `src/lib/net/safeFetch.ts`:
+
+- Solo `http`/`https` en los puertos 80 y 443, sin credenciales en la URL.
+- Cada salto de redirección (máximo 5) se vuelve a validar.
+- La IP se comprueba **en el momento de conectar** (lookup propio en el `Agent` de undici), así que un cambio de DNS entre la validación y la conexión (DNS rebinding) no sirve.
+- Si alguna de las IPs del dominio es interna se rechaza entero. Se bloquean rangos privados, loopback, link-local (metadatos cloud), CGNAT, documentación, multicast y las IPv6 que llevan dentro una IPv4 interna.
+- 8 s de timeout por petición y como mucho 2 MB de cuerpo.
 
 ## Hoja de ruta
 
 - [x] PR 1: scaffolding, CI y README
-- [ ] PR 2: `safeFetch` con protección SSRF, validación de dominio y rate limiting
+- [x] PR 2: `safeFetch` con protección SSRF, validación de dominio y rate limiting
 - [ ] PR 3: checks de SSL y de cabeceras
 - [ ] PR 4: check de correo (DNS y emails expuestos)
 - [ ] PR 5: check de cookies y RGPD (fase 1)
