@@ -133,6 +133,12 @@ export const REMEDIATION = {
     'Si es técnica (sesión, carrito, seguridad), no necesitas consentimiento: inclúyela en la política de cookies.',
     'Si es de analítica o publicidad, bloquéala hasta que el usuario acepte.',
   ],
+  'privacy.cookies_js': [
+    'Configura tu gestor de consentimiento para que bloquee los scripts de analítica y publicidad hasta que el usuario pulse "Aceptar" (no basta con mostrar el banner).',
+    'Con Google Tag Manager, activa Consent Mode v2 con todo en "denied" por defecto y haz que las etiquetas esperen al consentimiento.',
+    'Revisa los plugins que añaden píxeles (Facebook, TikTok, Hotjar…): muchos se cargan por su cuenta, fuera del gestor de consentimiento.',
+    'Comprueba el resultado en una ventana privada: antes de aceptar, en las herramientas del navegador (Aplicación > Cookies) no debería haber cookies de terceros.',
+  ],
   'privacy.trackers': [
     'Haz que estos scripts solo se carguen tras aceptar: los gestores de consentimiento (Cookiebot, Complianz, CookieYes…) lo hacen marcando cada script con su categoría.',
     'Con Google Tag Manager, activa Consent Mode v2 y configura los permisos por defecto como "denied".',

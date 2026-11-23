@@ -23,6 +23,8 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // playwright-core se carga solo con ENABLE_HEADLESS=true y no debe empaquetarse.
+  serverExternalPackages: ['playwright-core'],
   reactStrictMode: true,
   async headers() {
     return [

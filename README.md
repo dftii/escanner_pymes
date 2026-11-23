@@ -54,6 +54,7 @@ npm run lint         # ESLint + Prettier
 npm run typecheck
 npm test
 npm run test:coverage
+npx playwright-core install --only-shell chromium  # solo para los tests del navegador (tests/browser)
 npm run test:network # contra webs y DNS reales (badssl.com, google.com, github.com); necesita Internet
 npm run build
 ```
@@ -74,7 +75,10 @@ Variables de entorno (se irán añadiendo en cada hito):
 | `UPSTASH_REDIS_REST_TOKEN` | Token de Upstash                                                   | sin definir           |
 | `RATE_LIMIT_SALT`          | Sal para el hash de la IP (la IP nunca se guarda en claro)         | derivada / aleatoria  |
 | `ENABLE_HEADLESS`          | Activa el análisis de cookies con navegador (fase 2)               | `false`               |
+| `CHROMIUM_PATH`            | Ruta al ejecutable de Chromium para la fase 2                      | el de Playwright      |
 | `DNS_SERVERS`              | Servidores DNS para los checks de correo, p. ej. `1.1.1.1,8.8.8.8` | los del sistema       |
+
+**Fase 2 en producción.** Vercel no trae Chromium, así que con `ENABLE_HEADLESS=true` hay que darle uno con `CHROMIUM_PATH` (por ejemplo, el paquete `@sparticuz/chromium` descomprimido en `/tmp`) o, más sencillo, desplegar en un servidor o contenedor con Chromium instalado (`npx playwright-core install --with-deps --only-shell chromium`). Cada navegador usa unos 150 MB de memoria y añade entre 3 y 20 s al análisis; sin la variable, la herramienta funciona igual que antes.
 
 Sin Upstash el límite (5 análisis cada 10 minutos por IP) se guarda en la memoria de cada instancia de Vercel: funciona, pero no se comparte entre instancias.
 
@@ -161,7 +165,15 @@ En `email.exposed` se tiene en cuenta que la LSSI obliga a publicar un email de 
 | `privacy.cookie_policy`  | Enlace a la política de cookies (obligatoria si hay cookies que requieren consentimiento)                                                                                                                      |
 | `privacy.forms`          | Formularios de las páginas revisadas: envío por http, sin información de protección de datos o con casillas de publicidad premarcadas                                                                          |
 
-El informe incluye el aviso de que estos resultados son orientativos y no sustituyen el asesoramiento legal (`notices`). La fase 1 no ve las cookies que crean los scripts al ejecutarse: las cubre indirectamente detectando los scripts. La fase 2 (PR 7) usará un navegador real.
+El informe incluye el aviso de que estos resultados son orientativos y no sustituyen el asesoramiento legal (`notices`). La fase 1 no ve las cookies que crean los scripts al ejecutarse: las cubre indirectamente detectando los scripts.
+
+**Cookies y RGPD, fase 2** (`src/lib/checks/browserCookies.ts`, opcional con `ENABLE_HEADLESS=true`). Abre la web en un Chromium real (`playwright-core`), sin aceptar nada, sin hacer clic y sin enviar formularios, espera a que la red se calme y lee las cookies que han creado los scripts.
+
+| id                   | Qué revisa                                                                                                                                                                  |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `privacy.cookies_js` | Cookies creadas al ejecutar la página: falla con las de analítica, publicidad o de terceros sin clasificar. No repite las que ya evaluó `privacy.cookies`. Peso 3 (crítica) |
+
+Si el navegador no puede abrir la web o está ocupado (como mucho 2 a la vez por instancia), el hallazgo sale como `error` y no cuenta para la nota. Cada análisis usa un contexto vacío que se cierra al terminar, sin service workers, descargas ni permisos; las ventanas emergentes se cierran y los diálogos se descartan.
 
 Las páginas extra (contacto, aviso legal, privacidad) se descargan una sola vez y las comparten los checks de correo y de RGPD.
 
@@ -177,6 +189,8 @@ Todas las peticiones salientes pasan por `src/lib/net/safeFetch.ts`:
 - Si alguna de las IPs del dominio es interna se rechaza entero. Se bloquean rangos privados, loopback, link-local (metadatos cloud), CGNAT, documentación, multicast y las IPv6 que llevan dentro una IPv4 interna.
 - 8 s de timeout por petición y como mucho 2 MB de cuerpo.
 
+El navegador headless (fase 2) conecta por su cuenta, así que no basta con revisar las URLs antes de pedirlas. Por eso se lanza con `--proxy-server` apuntando a un proxy local (`src/lib/net/egressProxy.ts`) que abre él mismo cada conexión con el mismo lookup seguro: la IP se valida al conectar también para el navegador, incluidas las peticiones a `localhost` (`<-loopback>` anula la excepción por defecto de Chromium). Solo deja salir a los puertos 80 y 443, como mucho 32 conexiones a la vez y 20 MB en total por análisis.
+
 ## Hoja de ruta
 
 - [x] PR 1: scaffolding, CI y README
@@ -185,4 +199,4 @@ Todas las peticiones salientes pasan por `src/lib/net/safeFetch.ts`:
 - [x] PR 4: check de correo (DNS y emails expuestos)
 - [x] PR 5: check de cookies y RGPD (fase 1)
 - [x] PR 6: puntuación, interfaz completa y vista imprimible
-- [ ] PR 7 (opcional): navegador headless para cookies (fase 2)
+- [x] PR 7: navegador headless para cookies (fase 2), detrás de `ENABLE_HEADLESS`

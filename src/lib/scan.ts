@@ -1,7 +1,14 @@
 import { checkEmailDns } from './checks/emailDns';
 import { analyzeEmailExposure, fetchRelatedPages } from './checks/emailExposure';
 import { checkHeaders } from './checks/headers';
-import { checkPrivacy, PRIVACY_DISCLAIMER } from './checks/privacy';
+import {
+  analyzeBrowserCookies,
+  BROWSER_FINDING_ID,
+  createBrowserRunner,
+  isHeadlessEnabled,
+  type BrowserRunner,
+} from './checks/browserCookies';
+import { checkPrivacy, parseSetCookie, PRIVACY_DISCLAIMER } from './checks/privacy';
 import { checkSsl, type SslDeps } from './checks/ssl';
 import { errorFinding } from './findings';
 import type { DnsClient } from './net/dnsClient';
@@ -14,6 +21,11 @@ export type ScanDeps = {
   probe?: SslDeps['probe'];
   dns?: DnsClient;
   now?: () => Date;
+  /**
+   * Navegador para la fase 2 de cookies. `undefined` lo decide `ENABLE_HEADLESS`;
+   * `null` lo desactiva siempre.
+   */
+  browser?: BrowserRunner | null;
 };
 
 export type ScanResult = {
@@ -61,6 +73,12 @@ export async function runScan(
 ): Promise<ScanResult> {
   const started = Date.now();
   const fetcher = deps.fetch ?? safeFetch;
+  const browser =
+    deps.browser === undefined
+      ? isHeadlessEnabled()
+        ? createBrowserRunner()
+        : null
+      : deps.browser;
 
   const home = fetchHomepage(domain, fetcher);
   const pages = home.then((page) => fetchRelatedPages(page, fetcher));
@@ -77,7 +95,15 @@ export async function runScan(
       guard('email.dns', 'email', () => checkEmailDns(domain, deps.dns)),
       guard('email.exposed', 'email', async () => [analyzeEmailExposure(await pages)]),
     ]).then((parts) => parts.flat()),
-    privacy: guard('privacy.scan', 'privacy', async () => checkPrivacy(await home, await pages)),
+    privacy: Promise.all([
+      guard('privacy.scan', 'privacy', async () => checkPrivacy(await home, await pages)),
+      browser
+        ? guard(BROWSER_FINDING_ID, 'privacy', async () => {
+            const observation = await browser(domain);
+            return [analyzeBrowserCookies(observation, await serverCookieNames(home))];
+          })
+        : Promise.resolve([]),
+    ]).then((parts) => parts.flat()),
   };
 
   const categories = Object.keys(tasks) as Category[];
@@ -95,6 +121,15 @@ export async function runScan(
     findings: results.flat(),
     notices: [PRIVACY_DISCLAIMER],
   };
+}
+
+/** Cookies que ya envió el servidor (las evalúa `privacy.cookies`). */
+async function serverCookieNames(home: Promise<SafeResponse>): Promise<string[]> {
+  const page = await home.catch(() => null);
+  if (!page) return [];
+  return [...page.redirects.flatMap((r) => r.setCookies), ...page.setCookies]
+    .map((h) => parseSetCookie(h)?.name)
+    .filter((n): n is string => !!n);
 }
 
 /** Ejecuta un check y convierte cualquier excepción en un hallazgo de error. */
