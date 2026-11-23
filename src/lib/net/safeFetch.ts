@@ -47,6 +47,14 @@ export type SafeFetchOptions = {
   timeoutMs?: number;
   maxBytes?: number;
   maxRedirects?: number;
+  /** `false` devuelve el 3xx tal cual, sin seguirlo. Por defecto `true`. */
+  followRedirects?: boolean;
+  /**
+   * Acepta certificados caducados o no fiables. Solo para LEER la página
+   * (cabeceras, HTML): nunca se envían datos. El check SSL ya informa del
+   * problema del certificado por su lado. La protección SSRF sigue activa.
+   */
+  acceptInvalidCert?: boolean;
   headers?: Record<string, string>;
   /** Para tests: resolutor DNS alternativo. */
   resolver?: Resolver;
@@ -54,17 +62,22 @@ export type SafeFetchOptions = {
   fetchImpl?: FetchLike;
 };
 
-const agents = new WeakMap<Resolver, Agent>();
+const agents = { strict: new WeakMap<Resolver, Agent>(), lenient: new WeakMap<Resolver, Agent>() };
 
-function agentFor(resolver: Resolver): Agent {
-  let agent = agents.get(resolver);
+function agentFor(resolver: Resolver, acceptInvalidCert: boolean): Agent {
+  const cache = acceptInvalidCert ? agents.lenient : agents.strict;
+  let agent = cache.get(resolver);
   if (!agent) {
     agent = new Agent({
-      connect: { lookup: createSafeLookup(resolver), timeout: SAFE_FETCH_DEFAULTS.timeoutMs },
+      connect: {
+        lookup: createSafeLookup(resolver),
+        timeout: SAFE_FETCH_DEFAULTS.timeoutMs,
+        rejectUnauthorized: !acceptInvalidCert,
+      },
       headersTimeout: SAFE_FETCH_DEFAULTS.timeoutMs,
       bodyTimeout: SAFE_FETCH_DEFAULTS.timeoutMs,
     });
-    agents.set(resolver, agent);
+    cache.set(resolver, agent);
   }
   return agent;
 }
@@ -119,7 +132,9 @@ export async function safeFetch(
   const maxBytes = options.maxBytes ?? SAFE_FETCH_DEFAULTS.maxBytes;
   const maxRedirects = options.maxRedirects ?? SAFE_FETCH_DEFAULTS.maxRedirects;
   const doFetch: FetchLike = options.fetchImpl ?? (undiciFetch as unknown as FetchLike);
-  const dispatcher = options.fetchImpl ? undefined : agentFor(options.resolver ?? systemResolver);
+  const dispatcher = options.fetchImpl
+    ? undefined
+    : agentFor(options.resolver ?? systemResolver, options.acceptInvalidCert === true);
 
   let method: string = options.method ?? 'GET';
   let current = assertSafeUrl(input);
@@ -146,7 +161,7 @@ export async function safeFetch(
     }
 
     const location = response.headers.get('location');
-    if (REDIRECT_STATUSES.has(response.status) && location) {
+    if (options.followRedirects !== false && REDIRECT_STATUSES.has(response.status) && location) {
       await response.body?.cancel().catch(() => {});
       redirects.push({
         url: current.href,
