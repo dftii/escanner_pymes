@@ -1,10 +1,13 @@
 import type { Finding } from '@/lib/types';
 import { StatusBadge } from './Badges';
 import { DnsRecords } from './DnsRecords';
+import { GlossaryText } from './Glossary';
 
 /** Un hallazgo desplegable: los problemas se muestran abiertos. */
 export function FindingItem({ finding }: { finding: Finding }) {
   const isProblem = finding.status === 'fail' || finding.status === 'warning';
+  // Cada término se explica una sola vez por hallazgo.
+  const seen = new Set<string>();
   return (
     <li>
       <details
@@ -22,11 +25,13 @@ export function FindingItem({ finding }: { finding: Finding }) {
           </span>
         </summary>
         <div className="space-y-3 px-4 pb-4 text-sm text-slate-700 dark:text-slate-300">
-          <p>{finding.detail}</p>
+          <p>
+            <GlossaryText text={finding.detail} seen={seen} />
+          </p>
           {finding.risk && finding.status !== 'ok' && (
             <p>
               <strong className="text-slate-900 dark:text-slate-100">Por qué importa: </strong>
-              {finding.risk}
+              <GlossaryText text={finding.risk} seen={seen} />
             </p>
           )}
           {finding.records && finding.records.length > 0 && (

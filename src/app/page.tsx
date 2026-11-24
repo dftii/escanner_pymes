@@ -1,4 +1,5 @@
 import { CheckMarquee } from '@/components/CheckMarquee';
+import { GlossaryText } from '@/components/Glossary';
 import { Scribble, stagger } from '@/components/Motion';
 import { Scanner } from '@/components/Scanner';
 import { CATEGORY_LABELS, type Category } from '@/lib/types';
@@ -68,7 +69,7 @@ export default function Home() {
                 {CATEGORY_LABELS[category]}
               </h3>
               <p className="mt-1 text-sm text-slate-700 dark:text-slate-400">
-                {CATEGORY_HINTS[category]}
+                <GlossaryText text={CATEGORY_HINTS[category]} />
               </p>
             </li>
           ))}

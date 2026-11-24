@@ -36,6 +36,9 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
               seguimiento.
             </p>
             <nav aria-label="Información legal" className="flex gap-4">
+              <Link href="/glosario" className="link-grow">
+                Glosario
+              </Link>
               <Link href="/aviso-legal" className="link-grow">
                 Aviso legal
               </Link>

@@ -303,3 +303,10 @@ body {
     block-size: auto !important;
   }
 }
+
+/* Navegadores sin Popover API: el término queda subrayado y sin globo. */
+@supports not selector(:popover-open) {
+  [popover] {
+    display: none;
+  }
+}
