@@ -55,9 +55,12 @@ npm run typecheck
 npm test
 npm run test:coverage
 npx playwright-core install --only-shell chromium  # solo para los tests del navegador (tests/browser)
+npm run test:e2e     # interfaz con Chromium real (antes: npm run build y npx playwright install chromium)
 npm run test:network # contra webs y DNS reales (badssl.com, google.com, github.com); necesita Internet
 npm run build
 ```
+
+Los tests de la interfaz (`e2e/`, Playwright) arrancan el build de producción y simulan `/api/scan`: análisis, registros DNS, email, historial y evolución, comparación, enlace compartido, glosario (ratón, teclado y toque en móvil), movimiento reducido, ausencia de scroll horizontal y de errores en la consola, y accesibilidad WCAG A/AA con axe en todas las páginas y en un informe. Van en un job propio del CI.
 
 Los tests unitarios no salen a Internet: usan respuestas simuladas y un servidor TLS local con un certificado autofirmado solo para tests (`tests/fixtures/tls`). Los de `tests/network` van en un workflow aparte (`.github/workflows/network.yml`: en cada PR, en cada subida a `main`, cada lunes y a mano), para que el CI principal no dependa de webs ajenas.
 
