@@ -61,6 +61,7 @@ export const FINDING_WEIGHTS: Record<string, number> = {
   'headers.referrer': 0.5,
   'headers.permissions': 0.5,
   'headers.disclosure': 1,
+  'headers.cms': 3,
   'email.mx': 0,
   'email.spf': 3,
   'email.dmarc': 3,

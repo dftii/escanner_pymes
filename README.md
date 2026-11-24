@@ -164,6 +164,8 @@ Cada hallazgo tiene `id`, `category`, `status` (`ok`, `warning`, `fail`, `info`,
 
 **Cabeceras de seguridad** (`src/lib/checks/headers.ts`): HSTS (con un mínimo de 6 meses), CSP (avisa si permite `'unsafe-inline'` sin nonce), `X-Content-Type-Options`, protección frente a incrustación (`X-Frame-Options` o `frame-ancestors`), `Referrer-Policy`, `Permissions-Policy` y cabeceras que revelan versiones (`Server`, `X-Powered-By`…).
 
+**Gestor de contenidos** (`src/lib/checks/cms.ts`, `headers.cms`, peso 3): WordPress, Joomla o Drupal y su versión, vistos en la home (`meta generator`, `X-Generator`, `?ver=` de `/wp-includes/` sin contar jQuery), sin pedir rutas extra a la web. WordPress se compara con la API oficial (`api.wordpress.org`, caché de 6 h): fallo si va 2 o más ramas por detrás, aviso con una rama o un parche pendiente, informativo si está al día o no se ve la versión. Drupal anterior al 10: fallo (sin soporte). Si la API no responde, se informa sin juzgar la versión.
+
 **Correo y suplantación** (`src/lib/checks/emailDns.ts`, `emailExposure.ts`). Se revisa el dominio sin `www.`:
 
 | id              | Qué revisa                                                                                                                                                                                            |

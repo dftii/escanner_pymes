@@ -129,6 +129,16 @@ export const REMEDIATION = {
   ],
 
   // ─── Cookies y RGPD ─────────────────────────────────────────────────────
+  'headers.cms': [
+    'Haz una copia de seguridad completa (archivos y base de datos) y actualiza desde el escritorio de administración: Escritorio > Actualizaciones en WordPress.',
+    'Actualiza también los plugins y el tema: suelen ser la puerta de entrada más habitual.',
+    'Activa las actualizaciones automáticas de seguridad y borra los plugins que no uses.',
+    'Si no te atreves, tu empresa de hosting o tu desarrollador lo hacen en poco tiempo; muchos hostings lo incluyen gratis.',
+  ],
+  'headers.cms_info': [
+    'Mantén el núcleo, los plugins y el tema actualizados, con actualizaciones automáticas si puedes.',
+    'Para no mostrar la versión en WordPress, los plugins de seguridad (Wordfence, Solid Security) tienen la opción de ocultarla.',
+  ],
   'privacy.cookies': [
     'Instala un gestor de consentimiento (CMP) que bloquee estas cookies hasta que el usuario pulse "Aceptar".',
     'WordPress: Complianz, CookieYes o Cookiebot bloquean los scripts automáticamente. Shopify y Wix tienen banner propio en el panel.',

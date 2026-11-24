@@ -56,3 +56,10 @@ describe('Have I Been Pwned con la API real', () => {
     expect(f.detail).toContain('Adobe');
   });
 });
+
+describe('API de versiones de WordPress', () => {
+  it('devuelve una versión con formato X.Y', async () => {
+    const { latestWordPress } = await import('@/lib/checks/cms');
+    expect(await latestWordPress()).toMatch(/^\d+\.\d+/);
+  });
+});

@@ -1,5 +1,6 @@
 import { checkEmailDns } from './checks/emailDns';
 import { analyzeEmailExposure, fetchRelatedPages } from './checks/emailExposure';
+import { checkCms } from './checks/cms';
 import { checkHeaders } from './checks/headers';
 import { checkBreaches } from './checks/breaches';
 import {
@@ -98,7 +99,15 @@ export async function runScan(
         return finding ? [finding] : [];
       }),
     ]).then((parts) => parts.flat()),
-    headers: guard('headers.fetch', 'headers', async () => checkHeaders(await home)),
+    headers: Promise.all([
+      guard('headers.fetch', 'headers', async () => checkHeaders(await home)),
+      guard('headers.cms', 'headers', async () => {
+        const page = await home.catch(() => null);
+        if (!page) return [];
+        const finding = await checkCms(page, { fetch: fetcher });
+        return finding ? [finding] : [];
+      }),
+    ]).then((parts) => parts.flat()),
     email: Promise.all([
       guard('email.dns', 'email', () => checkEmailDns(domain, deps.dns)),
       guard('email.exposed', 'email', async () => [analyzeEmailExposure(await pages)]),
