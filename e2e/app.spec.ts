@@ -321,3 +321,43 @@ test.describe('idiomas', () => {
     });
   }
 });
+
+test.describe('tema claro y oscuro', () => {
+  test('sigue al sistema y se puede elegir a mano; se recuerda al recargar', async ({ page }) => {
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await page.goto('/');
+    const html = page.locator('html');
+    await expect(html).toHaveAttribute('data-theme', 'dark');
+    const bg = () => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+    const darkBg = await bg();
+
+    const group = page.getByRole('radiogroup', { name: 'Tema' });
+    await group.getByRole('radio', { name: 'Claro' }).click();
+    await expect(html).toHaveAttribute('data-theme', 'light');
+    expect(await bg()).not.toBe(darkBg);
+    await expect(group.getByRole('radio', { name: 'Claro' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+
+    await page.reload();
+    await expect(html).toHaveAttribute('data-theme', 'light');
+
+    await group.getByRole('radio', { name: 'Automático (según el sistema)' }).click();
+    await expect(html).toHaveAttribute('data-theme', 'dark');
+    await page.emulateMedia({ colorScheme: 'light' });
+    await expect(html).toHaveAttribute('data-theme', 'light');
+  });
+
+  test('accesibilidad (axe) en modo oscuro, con un informe', async ({ page }) => {
+    await page.emulateMedia({ colorScheme: 'dark', reducedMotion: 'reduce' });
+    await mockScan(page, () => report('minegocio.es', SAMPLE));
+    await page.goto('/');
+    await page.getByRole('radio', { name: 'Oscuro' }).click();
+    await scan(page, 'minegocio.es');
+    const results = await new AxeBuilder({ page })
+      .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+      .analyze();
+    expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+  });
+});

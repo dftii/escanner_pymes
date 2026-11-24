@@ -1,5 +1,12 @@
 @import 'tailwindcss';
 
+/*
+ * Modo oscuro controlado por `data-theme` en <html>. Un script en el <head>
+ * lo pone antes de pintar: la elección del usuario (si la hay) o la del
+ * sistema. Así no hay parpadeo y se puede cambiar a mano.
+ */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
 @theme {
   --color-brand-50: #eef6ff;
   --color-brand-600: #1d5fd1;
@@ -8,7 +15,10 @@
 }
 
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
+}
+:root[data-theme='dark'] {
+  color-scheme: dark;
 }
 
 body {

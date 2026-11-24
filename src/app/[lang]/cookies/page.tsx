@@ -38,7 +38,11 @@ export default async function Cookies({ params }: Props) {
             LSSI-CE). Puedes borrarlo cuando quieras con “Borrar” o “Borrar todo el historial”, o
             borrando los datos del sitio en tu navegador.
           </p>
-          <p>El idioma de la web va en la propia dirección (/ca, /en), no en una cookie.</p>
+          <p>
+            Si eliges a mano el tema claro u oscuro, esa preferencia también se guarda en el
+            almacenamiento local de tu navegador (y nada más: no identifica a nadie). El idioma de
+            la web va en la propia dirección (/ca, /en), no en una cookie.
+          </p>
           <p>
             Si en el futuro añadimos alguna cookie, actualizaremos esta página y, si no es técnica,
             te pediremos permiso antes de instalarla, tal como exige el artículo 22.2 de la LSSI-CE.
@@ -63,7 +67,11 @@ export default async function Cookies({ params }: Props) {
             LSSI-CE). Ho pots esborrar quan vulguis amb “Esborrar” o “Esborrar tot
             l&apos;historial”, o esborrant les dades del lloc al teu navegador.
           </p>
-          <p>L&apos;idioma del web va a la mateixa adreça (/ca, /en), no en una galeta.</p>
+          <p>
+            Si tries a mà el tema clar o fosc, aquesta preferència també es desa a
+            l&apos;emmagatzematge local del teu navegador (i res més: no identifica ningú).
+            L&apos;idioma del web va a la mateixa adreça (/ca, /en), no en una galeta.
+          </p>
           <p>
             Si en el futur hi afegim alguna galeta, actualitzarem aquesta pàgina i, si no és
             tècnica, et demanarem permís abans d&apos;instal·lar-la, tal com exigeix l&apos;article
@@ -89,7 +97,11 @@ export default async function Cookies({ params }: Props) {
             the Spanish LSSI-CE). You can delete it at any time with “Delete” or “Clear all
             history”, or by clearing the site data in your browser.
           </p>
-          <p>The website language is part of the address (/ca, /en), not a cookie.</p>
+          <p>
+            If you pick the light or dark theme by hand, that preference is also kept in your
+            browser’s local storage (and nothing else: it does not identify anyone). The website
+            language is part of the address (/ca, /en), not a cookie.
+          </p>
           <p>
             If we ever add a cookie, we will update this page and, if it is not technical, ask for
             your permission before setting it, as required by article 22.2 of the LSSI-CE.

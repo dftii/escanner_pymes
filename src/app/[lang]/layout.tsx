@@ -3,9 +3,11 @@ import { headers } from 'next/headers';
 import Link from 'next/link';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { LocaleProvider } from '@/components/LocaleProvider';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { LOCALE_TAGS, localePath } from '@/lib/i18n';
 import { localeFrom, pageMetadata, SITE_TAGLINE } from '@/lib/pageMeta';
 import { SITE_NAME, siteUrl } from '@/lib/site';
+import { THEME_SCRIPT } from '@/lib/theme';
 import { UI } from '@/lib/ui';
 import '../globals.css';
 
@@ -39,10 +41,14 @@ export default async function RootLayout({
   const t = UI[locale];
   // Leer las cabeceras hace la página dinámica: Next aplica así el nonce de la CSP
   // (lo pone el middleware) a sus propios scripts en cada petición.
-  await headers();
+  const nonce = (await headers()).get('x-nonce') ?? undefined;
 
   return (
-    <html lang={LOCALE_TAGS[locale]}>
+    // data-theme lo pone el script antes de hidratar: React no debe quejarse.
+    <html lang={LOCALE_TAGS[locale]} suppressHydrationWarning>
+      <head>
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
       <body className="flex min-h-dvh flex-col">
         <LocaleProvider locale={locale}>
           <a
@@ -51,8 +57,9 @@ export default async function RootLayout({
           >
             {t.skipToContent}
           </a>
-          <div className="mx-auto flex w-full max-w-3xl justify-end px-4 pt-4 print:hidden">
+          <div className="mx-auto flex w-full max-w-3xl items-center justify-end gap-3 px-4 pt-4 print:hidden">
             <LanguageSwitcher />
+            <ThemeToggle />
           </div>
           <div className="flex-1">{children}</div>
           <footer className="border-t border-slate-200 px-4 py-6 text-sm text-slate-700 dark:border-slate-800 dark:text-slate-400 print:hidden">

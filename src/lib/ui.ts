@@ -138,6 +138,10 @@ export const UI = messages({
     privacy: 'Privacidad',
     cookies: 'Cookies',
     back: '← Volver al escáner',
+    theme: 'Tema',
+    themeSystem: 'Automático (según el sistema)',
+    themeLight: 'Claro',
+    themeDark: 'Oscuro',
     language: 'Idioma',
     // Glosario
     glossaryIntro: 'Los términos del informe, explicados sin tecnicismos.',
@@ -273,6 +277,10 @@ export const UI = messages({
     privacy: 'Privadesa',
     cookies: 'Galetes',
     back: "← Tornar a l'escàner",
+    theme: 'Tema',
+    themeSystem: 'Automàtic (segons el sistema)',
+    themeLight: 'Clar',
+    themeDark: 'Fosc',
     language: 'Idioma',
     glossaryIntro: "Els termes de l'informe, explicats sense tecnicismes.",
     glossaryDescription:
@@ -405,6 +413,10 @@ export const UI = messages({
     privacy: 'Privacy',
     cookies: 'Cookies',
     back: '← Back to the scanner',
+    theme: 'Theme',
+    themeSystem: 'Automatic (follow the system)',
+    themeLight: 'Light',
+    themeDark: 'Dark',
     language: 'Language',
     glossaryIntro: 'The terms used in the report, explained without jargon.',
     glossaryDescription:

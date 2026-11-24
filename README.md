@@ -129,6 +129,14 @@ Con `200` la respuesta es `application/x-ndjson`, con un evento JSON por línea 
 - **Glosario** (`src/lib/glossary.ts`): los términos técnicos de los hallazgos (SSL, HSTS, CSP, SPF, DKIM, DMARC, RGPD, cookies, phishing…) llevan una explicación de una línea al pasar el ratón, enfocar con el teclado o tocar en el móvil; solo la primera vez que aparecen en cada hallazgo. El globo usa la Popover API (capa superior, no lo recortan los desplegables). Página completa en `/glosario`.
 - **Compárate con otra web**: analiza un segundo dominio (cuenta para el límite y pide el mismo consentimiento) y muestra las notas lado a lado (`compareReports`).
 
+## Tema claro y oscuro
+
+Por defecto la web sigue al sistema (`prefers-color-scheme`) y cambia sola si el sistema cambia. Con el selector de arriba a la derecha se puede fijar **claro** u **oscuro**; la elección se guarda solo en `localStorage` del navegador (`escaner-pymes:tema`), sin cookies.
+
+- El modo oscuro de Tailwind depende de `data-theme` en `<html>` (`@custom-variant dark` en `globals.css`).
+- Un script mínimo en el `<head>`, con el nonce de la CSP (`src/lib/theme.ts`), pone el tema antes de pintar: sin parpadeo.
+- Al imprimir o guardar el PDF se usa siempre el tema claro.
+
 ## Idiomas
 
 La web y el informe están en **español** (`/`), **catalán** (`/ca`) e **inglés** (`/en`), con un selector arriba a la derecha. El idioma va en la dirección: sin cookies ni almacenamiento.
