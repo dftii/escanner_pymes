@@ -42,6 +42,6 @@ export function getLegalInfo(env: Env = process.env): LegalInfo {
     domicilio: read(env, LEGAL_ENV_VARS.domicilio),
     email: read(env, LEGAL_ENV_VARS.email),
     hosting: read(env, LEGAL_ENV_VARS.hosting) ?? DEFAULT_HOSTING,
-    upstash: !!read(env, 'UPSTASH_REDIS_REST_URL'),
+    upstash: !!(read(env, 'UPSTASH_REDIS_REST_URL') ?? read(env, 'KV_REST_API_URL')),
   };
 }

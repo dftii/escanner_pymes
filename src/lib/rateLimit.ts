@@ -114,8 +114,9 @@ let singleton: { limiter: RateLimiter; salt: string } | undefined;
 /** Limitador de la aplicación: Upstash si está configurado, si no memoria. */
 export function getRateLimiter(env: Env = process.env): { limiter: RateLimiter; salt: string } {
   if (singleton) return singleton;
-  const url = env.UPSTASH_REDIS_REST_URL;
-  const token = env.UPSTASH_REDIS_REST_TOKEN;
+  // La integración de Upstash del Marketplace de Vercel usa los nombres KV_REST_API_*.
+  const url = env.UPSTASH_REDIS_REST_URL || env.KV_REST_API_URL;
+  const token = env.UPSTASH_REDIS_REST_TOKEN || env.KV_REST_API_TOKEN;
   // Con Upstash la sal tiene que ser la misma en todas las instancias.
   const salt =
     env.RATE_LIMIT_SALT ||

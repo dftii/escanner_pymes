@@ -126,6 +126,15 @@ describe('getRateLimiter', () => {
     expect(first).toBe(second);
   });
 
+  it('acepta los nombres de la integración de Vercel (KV_REST_API_*)', async () => {
+    const upstash = (await load())({
+      UPSTASH_REDIS_REST_URL: 'https://r',
+      UPSTASH_REDIS_REST_TOKEN: 'tok',
+    });
+    const kv = (await load())({ KV_REST_API_URL: 'https://r', KV_REST_API_TOKEN: 'tok' });
+    expect(kv.salt).toBe(upstash.salt);
+  });
+
   it('respeta RATE_LIMIT_SALT', async () => {
     expect((await load())({ RATE_LIMIT_SALT: 'fija' }).salt).toBe('fija');
   });

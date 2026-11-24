@@ -32,4 +32,8 @@ describe('getLegalInfo', () => {
       upstash: false,
     });
   });
+
+  it('detecta Upstash también con los nombres de Vercel', () => {
+    expect(getLegalInfo({ KV_REST_API_URL: 'https://x.upstash.io' }).upstash).toBe(true);
+  });
 });

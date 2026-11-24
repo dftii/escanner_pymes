@@ -5,6 +5,9 @@ name: Tests de red
 # de esas webs cambia o se cae, este job puede fallar sin que haya un bug.
 on:
   pull_request:
+  # También en cada subida a main: allí se publica directamente en Vercel.
+  push:
+    branches: [main]
   workflow_dispatch:
   schedule:
     - cron: '0 6 * * 1' # lunes a las 06:00 UTC

@@ -59,7 +59,7 @@ npm run test:network # contra webs y DNS reales (badssl.com, google.com, github.
 npm run build
 ```
 
-Los tests unitarios no salen a Internet: usan respuestas simuladas y un servidor TLS local con un certificado autofirmado solo para tests (`tests/fixtures/tls`). Los de `tests/network` van en un workflow aparte (`.github/workflows/network.yml`: en cada PR, cada lunes y a mano), para que el CI principal no dependa de webs ajenas.
+Los tests unitarios no salen a Internet: usan respuestas simuladas y un servidor TLS local con un certificado autofirmado solo para tests (`tests/fixtures/tls`). Los de `tests/network` van en un workflow aparte (`.github/workflows/network.yml`: en cada PR, en cada subida a `main`, cada lunes y a mano), para que el CI principal no dependa de webs ajenas.
 
 ## Despliegue en Vercel
 
@@ -84,6 +84,8 @@ Variables de entorno (se irán añadiendo en cada hito):
 | `DNS_SERVERS`              | Servidores DNS para los checks de correo, p. ej. `1.1.1.1,8.8.8.8` | los del sistema         |
 
 **Fase 2 en producción.** Vercel no trae Chromium, así que con `ENABLE_HEADLESS=true` hay que darle uno con `CHROMIUM_PATH` (por ejemplo, el paquete `@sparticuz/chromium` descomprimido en `/tmp`) o, más sencillo, desplegar en un servidor o contenedor con Chromium instalado (`npx playwright-core install --with-deps --only-shell chromium`). Cada navegador usa unos 150 MB de memoria y añade entre 3 y 20 s al análisis; sin la variable, la herramienta funciona igual que antes.
+
+Si conectas Upstash desde el Marketplace de Vercel (Storage → Upstash for Redis), la integración crea `KV_REST_API_URL` y `KV_REST_API_TOKEN`: también sirven, no hace falta renombrarlas.
 
 Sin Upstash el límite (5 análisis cada 10 minutos por IP) se guarda en la memoria de cada instancia de Vercel: funciona, pero no se comparte entre instancias.
 
