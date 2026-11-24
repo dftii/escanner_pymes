@@ -120,6 +120,7 @@ Con `200` la respuesta es `application/x-ndjson`, con un evento JSON por línea 
 - **Descargar PDF** (vista imprimible) y **Copiar resumen**.
 - **Enviar por email**: enlace `mailto:` con el resumen (`mailtoHref`, recortado a ~1900 caracteres). Abre el programa de correo del usuario; no hay envío desde el servidor ni proveedor de correo.
 - **Historial** (`src/lib/history.ts`): con "Guardar en este navegador" el informe completo se guarda en `localStorage` (máximo 20; si se llena, se descartan los más antiguos). Se pueden volver a abrir o borrar, y al ver un informe de un dominio con otro anterior guardado aparece la tabla **Evolución**.
+- **Copiar enlace** (`src/lib/share.ts`): el informe va comprimido (`deflate-raw`, sin `evidence`) en el fragmento de la URL (`/#r=…`), que el navegador no envía al servidor: no se guarda nada en ningún sitio. Al abrirlo se descomprime con un tope de tamaño (contra bombas de compresión) y se valida con un esquema estricto (`src/lib/reportSchema.ts`, el mismo que usa el historial); si no es válido, se muestra un error. Un aviso indica que es un informe compartido y permite volver a analizar el dominio.
 - **Compárate con otra web**: analiza un segundo dominio (cuenta para el límite y pide el mismo consentimiento) y muestra las notas lado a lado (`compareReports`).
 
 ## Animaciones

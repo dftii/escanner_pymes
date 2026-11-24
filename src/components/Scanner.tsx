@@ -12,6 +12,7 @@ import {
 } from '@/lib/history';
 import type { ReportData } from '@/lib/report';
 import { requestScan } from '@/lib/scanClient';
+import { decodeReport, sharedFromHash } from '@/lib/share';
 import { CATEGORY_LABELS, type Category } from '@/lib/types';
 import { HistoryList } from './History';
 import { ReportView, type SaveState } from './ReportView';
@@ -21,12 +22,13 @@ const CATEGORIES = Object.keys(CATEGORY_LABELS) as Category[];
 type State =
   | { phase: 'idle' }
   | { phase: 'scanning'; domain: string; done: Category[] }
-  | { phase: 'done'; report: ReportData }
+  | { phase: 'done'; report: ReportData; shared?: boolean }
   | { phase: 'error'; message: string };
 
 export function Scanner() {
   const [state, setState] = useState<State>({ phase: 'idle' });
   const resultsRef = useRef<HTMLDivElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
   const domainId = useId();
   const consentId = useId();
   const errorId = useId();
@@ -41,7 +43,38 @@ export function Scanner() {
     setHistory(loadHistory(storage));
   }, []);
 
+  // Informe compartido en el enlace (#r=…): se descomprime y valida en el navegador.
+  useEffect(() => {
+    const encoded = sharedFromHash(window.location.hash);
+    if (!encoded) return;
+    let cancelled = false;
+    decodeReport(encoded).then((report) => {
+      if (cancelled) return;
+      if (report) {
+        setState({ phase: 'done', report, shared: true });
+        requestAnimationFrame(() => resultsRef.current?.focus());
+      } else {
+        setState({
+          phase: 'error',
+          message:
+            'El enlace del informe está incompleto o dañado. Pide que te lo vuelvan a enviar.',
+        });
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /** Quita el informe compartido de la URL (al analizar otro dominio). */
+  function clearSharedHash() {
+    if (sharedFromHash(window.location.hash)) {
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
+  }
+
   function show(report: ReportData) {
+    clearSharedHash();
     setSaveError(false);
     setState({ phase: 'done', report });
     requestAnimationFrame(() => resultsRef.current?.focus());
@@ -52,6 +85,7 @@ export function Scanner() {
     const data = new FormData(event.currentTarget);
     const domain = String(data.get('domain') ?? '').trim();
     const consent = data.get('consent') === 'on';
+    clearSharedHash();
     setState({ phase: 'scanning', domain, done: [] });
 
     try {
@@ -88,6 +122,7 @@ export function Scanner() {
   return (
     <div className="flex flex-col gap-10">
       <form
+        ref={formRef}
         onSubmit={onSubmit}
         className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-6 dark:border-slate-800 dark:bg-slate-900 print:hidden"
         aria-describedby={state.phase === 'error' ? errorId : undefined}
@@ -208,6 +243,15 @@ export function Scanner() {
             saveState={saveState}
             onSave={onSave}
             previous={previousReport(history, current)}
+            shared={state.phase === 'done' && !!state.shared}
+            onRescan={() => {
+              const input = formRef.current?.elements.namedItem('domain');
+              if (input instanceof HTMLInputElement) {
+                input.value = current.domain;
+                input.focus();
+              }
+              formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }}
           />
         </div>
       )}

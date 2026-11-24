@@ -1,4 +1,5 @@
 import type { ReportData } from './report';
+import { parseReport } from './reportSchema';
 
 /**
  * Historial de informes guardado SOLO en el navegador del usuario
@@ -25,24 +26,7 @@ export function browserStorage(): StorageLike | null {
   }
 }
 
-const isReport = (v: unknown): v is ReportData => {
-  const r = v as Partial<ReportData> | null;
-  return (
-    !!r &&
-    typeof r.domain === 'string' &&
-    typeof r.scannedAt === 'string' &&
-    !Number.isNaN(Date.parse(r.scannedAt)) &&
-    Array.isArray(r.findings) &&
-    r.findings.every(
-      (f) =>
-        !!f &&
-        typeof f.id === 'string' &&
-        typeof f.status === 'string' &&
-        typeof f.title === 'string',
-    ) &&
-    Array.isArray(r.notices)
-  );
-};
+const isReport = (v: unknown): v is ReportData => parseReport(v) !== null;
 
 /** Informes guardados, del más reciente al más antiguo. Ignora datos corruptos. */
 export function loadHistory(storage: StorageLike | null): ReportData[] {

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { sortBySeverity } from '@/lib/findings';
 import { formatDate, mailtoHref, summaryText, type ReportData } from '@/lib/report';
+import { encodeReport, shareUrl } from '@/lib/share';
 import { GRADE_LABELS, scoreReport } from '@/lib/scoring';
 import { CATEGORY_LABELS, type Category } from '@/lib/types';
 import { GradeBadge, ScoreRing } from './Badges';
@@ -20,6 +21,8 @@ export function ReportView({
   saveState = 'unavailable',
   onSave,
   previous = null,
+  shared = false,
+  onRescan,
 }: {
   report: ReportData;
   /** Si el informe está guardado en el historial del navegador. */
@@ -27,9 +30,13 @@ export function ReportView({
   onSave?: () => void;
   /** Informe guardado anterior del mismo dominio, para ver la evolución. */
   previous?: ReportData | null;
+  /** El informe viene de un enlace compartido. */
+  shared?: boolean;
+  /** Volver a analizar el dominio (desde un informe compartido). */
+  onRescan?: () => void;
 }) {
   const { global, categories } = scoreReport(report.findings);
-  const [copied, setCopied] = useState<'idle' | 'ok' | 'error'>('idle');
+  const [copied, setCopied] = useState<'idle' | 'ok' | 'link' | 'error'>('idle');
 
   // Al imprimir, abre todos los hallazgos (los <details> cerrados no se imprimen).
   useEffect(() => {
@@ -60,10 +67,37 @@ export function ReportView({
     }
   };
 
+  const copyLink = async () => {
+    try {
+      const url = shareUrl(window.location.origin, await encodeReport(report));
+      await navigator.clipboard.writeText(url);
+      setCopied('link');
+    } catch {
+      setCopied('error');
+    }
+  };
+
   const problems = report.findings.filter((f) => f.status === 'fail' || f.status === 'warning');
 
   return (
     <article aria-labelledby="informe-titulo" className="flex flex-col gap-8">
+      {shared && (
+        <aside className="fade-in flex flex-col gap-3 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sky-950 sm:flex-row sm:items-center dark:border-sky-900 dark:bg-sky-950/50 dark:text-sky-100 print:hidden">
+          <p className="flex-1 text-sm">
+            Estás viendo un <strong>informe compartido</strong>, generado el{' '}
+            {formatDate(report.scannedAt)}. Puede no reflejar el estado actual de la web.
+          </p>
+          {onRescan && (
+            <button
+              type="button"
+              onClick={onRescan}
+              className="press rounded-lg bg-sky-800 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-900"
+            >
+              Analizar de nuevo
+            </button>
+          )}
+        </aside>
+      )}
       <header className="flex flex-col gap-6 rounded-2xl border border-slate-200 p-6 sm:flex-row sm:items-center dark:border-slate-800">
         <span className="pop-in inline-flex shrink-0">
           <ScoreRing grade={global.grade} score={global.score} />
@@ -104,6 +138,13 @@ export function ReportView({
           >
             Copiar resumen
           </button>
+          <button
+            type="button"
+            onClick={copyLink}
+            className="press rounded-lg border border-slate-300 px-4 py-2 font-semibold hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
+          >
+            Copiar enlace
+          </button>
           <a
             href={mailtoHref(report)}
             className="press rounded-lg border border-slate-300 px-4 py-2 text-center font-semibold hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
@@ -129,6 +170,7 @@ export function ReportView({
             className="min-h-5 text-center text-sm text-slate-600 dark:text-slate-400"
           >
             {copied === 'ok' && <span className="fade-in">Resumen copiado ✓</span>}
+            {copied === 'link' && <span className="fade-in">Enlace copiado ✓</span>}
             {copied === 'error' && 'No se ha podido copiar'}
             {saveState === 'error' && 'No se ha podido guardar'}
           </p>
