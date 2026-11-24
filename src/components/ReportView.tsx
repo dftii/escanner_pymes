@@ -7,7 +7,9 @@ import { GRADE_LABELS, scoreReport } from '@/lib/scoring';
 import { CATEGORY_LABELS, type Category } from '@/lib/types';
 import { GradeBadge } from './Badges';
 import { ComparisonTable, CompetitorCompare } from './Comparison';
+import { CountUp } from './CountUp';
 import { FindingItem } from './FindingItem';
+import { stagger } from './Motion';
 
 const CATEGORIES = Object.keys(CATEGORY_LABELS) as Category[];
 
@@ -63,15 +65,22 @@ export function ReportView({
   return (
     <article aria-labelledby="informe-titulo" className="flex flex-col gap-8">
       <header className="flex flex-col gap-6 rounded-2xl border border-slate-200 p-6 sm:flex-row sm:items-center dark:border-slate-800">
-        <GradeBadge grade={global.grade} score={global.score} size="xl" />
+        <span className="pop-in inline-flex shrink-0">
+          <GradeBadge grade={global.grade} score={global.score} size="xl" />
+        </span>
         <div className="flex-1">
           <h2 id="informe-titulo" className="text-2xl font-bold break-all">
             {report.domain}
           </h2>
           <p className="mt-1 text-lg">
-            {global.grade
-              ? `Nota global: ${GRADE_LABELS[global.grade]} (${global.score}/100)`
-              : 'No hemos podido calcular una nota global'}
+            {global.grade ? (
+              <>
+                Nota global: {GRADE_LABELS[global.grade]} (<CountUp value={global.score ?? 0} />
+                /100)
+              </>
+            ) : (
+              'No hemos podido calcular una nota global'
+            )}
           </p>
           <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
             Analizado el {formatDate(report.scannedAt)} ·{' '}
@@ -84,20 +93,20 @@ export function ReportView({
           <button
             type="button"
             onClick={() => window.print()}
-            className="bg-brand-700 hover:bg-brand-900 rounded-lg px-4 py-2 font-semibold text-white"
+            className="press bg-brand-700 hover:bg-brand-900 rounded-lg px-4 py-2 font-semibold text-white"
           >
             Descargar PDF
           </button>
           <button
             type="button"
             onClick={copy}
-            className="rounded-lg border border-slate-300 px-4 py-2 font-semibold hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
+            className="press rounded-lg border border-slate-300 px-4 py-2 font-semibold hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
           >
             Copiar resumen
           </button>
           <a
             href={mailtoHref(report)}
-            className="rounded-lg border border-slate-300 px-4 py-2 text-center font-semibold hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
+            className="press rounded-lg border border-slate-300 px-4 py-2 text-center font-semibold hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
           >
             Enviar por email
           </a>
@@ -106,7 +115,7 @@ export function ReportView({
               type="button"
               onClick={onSave}
               disabled={saveState === 'saved'}
-              className="rounded-lg border border-slate-300 px-4 py-2 font-semibold hover:bg-slate-100 disabled:cursor-default disabled:opacity-70 dark:border-slate-700 dark:hover:bg-slate-800"
+              className="press rounded-lg border border-slate-300 px-4 py-2 font-semibold hover:bg-slate-100 disabled:cursor-default disabled:opacity-70 dark:border-slate-700 dark:hover:bg-slate-800"
             >
               {saveState === 'saved' ? 'Guardado ✓' : 'Guardar en este navegador'}
             </button>
@@ -141,15 +150,17 @@ export function ReportView({
       )}
 
       <ul className="grid gap-4 sm:grid-cols-2" aria-label="Nota por categoría">
-        {CATEGORIES.map((c) => {
+        {CATEGORIES.map((c, i) => {
           const s = categories[c];
           return (
-            <li key={c}>
+            <li key={c} className="rise-in" style={stagger(i + 2)}>
               <a
                 href={`#cat-${c}`}
-                className="flex items-center gap-4 rounded-xl border border-slate-200 p-4 hover:border-slate-400 dark:border-slate-800 dark:hover:border-slate-600"
+                className="bouncy flex items-center gap-4 rounded-xl border border-slate-200 p-4 hover:border-slate-400 dark:border-slate-800 dark:hover:border-slate-600"
               >
-                <GradeBadge grade={s.grade} score={s.score} />
+                <span className="pop-in inline-flex shrink-0" style={stagger(i + 3)}>
+                  <GradeBadge grade={s.grade} score={s.score} />
+                </span>
                 <span>
                   <span className="block font-semibold">{CATEGORY_LABELS[c]}</span>
                   <span className="block text-sm text-slate-600 dark:text-slate-400">
@@ -171,7 +182,7 @@ export function ReportView({
             key={c}
             id={`cat-${c}`}
             aria-labelledby={`cat-${c}-titulo`}
-            className="scroll-mt-4"
+            className="reveal scroll-mt-4"
           >
             <h3 id={`cat-${c}-titulo`} className="mb-3 text-xl font-semibold">
               {CATEGORY_LABELS[c]}

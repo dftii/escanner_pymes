@@ -113,7 +113,7 @@ export function Scanner() {
           <button
             type="submit"
             disabled={scanning}
-            className="bg-brand-700 hover:bg-brand-900 rounded-lg px-6 py-3 text-lg font-semibold text-white disabled:cursor-wait disabled:opacity-70"
+            className="press bg-brand-700 hover:bg-brand-900 rounded-lg px-6 py-3 text-lg font-semibold text-white disabled:cursor-wait disabled:opacity-70"
           >
             {scanning ? 'Analizando…' : 'Analizar'}
           </button>
@@ -158,7 +158,7 @@ export function Scanner() {
                       aria-hidden="true"
                       className={
                         done
-                          ? 'inline-flex size-6 items-center justify-center rounded-full bg-emerald-700 text-sm text-white'
+                          ? 'check-pop inline-flex size-6 items-center justify-center rounded-full bg-emerald-700 text-sm text-white'
                           : 'border-t-brand-700 inline-block size-6 animate-spin rounded-full border-2 border-slate-300 motion-reduce:animate-none'
                       }
                     >

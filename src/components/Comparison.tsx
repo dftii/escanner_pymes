@@ -49,7 +49,7 @@ export function ComparisonTable({
                 <span className="flex items-center gap-2">
                   <GradeBadge grade={r[side].grade} score={r[side].score} />
                   {r.better === side && (
-                    <span className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">
+                    <span className="pop-in inline-block text-sm font-semibold text-emerald-800 dark:text-emerald-300">
                       Mejor
                     </span>
                   )}
@@ -123,7 +123,7 @@ export function CompetitorCompare({ report }: { report: ReportData }) {
           <button
             type="submit"
             disabled={scanning}
-            className="rounded-lg border border-slate-300 px-4 py-2 font-semibold hover:bg-slate-100 disabled:cursor-wait disabled:opacity-70 dark:border-slate-700 dark:hover:bg-slate-800"
+            className="press rounded-lg border border-slate-300 px-4 py-2 font-semibold hover:bg-slate-100 disabled:cursor-wait disabled:opacity-70 dark:border-slate-700 dark:hover:bg-slate-800"
           >
             {scanning ? 'Analizando…' : 'Comparar'}
           </button>

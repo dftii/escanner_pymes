@@ -116,6 +116,10 @@ Con `200` la respuesta es `application/x-ndjson`, con un evento JSON por línea 
 - **Historial** (`src/lib/history.ts`): con "Guardar en este navegador" el informe completo se guarda en `localStorage` (máximo 20; si se llena, se descartan los más antiguos). Se pueden volver a abrir o borrar, y al ver un informe de un dominio con otro anterior guardado aparece la tabla **Evolución**.
 - **Compárate con otra web**: analiza un segundo dominio (cuenta para el límite y pide el mismo consentimiento) y muestra las notas lado a lado (`compareReports`).
 
+## Animaciones
+
+Solo CSS (más un contador con `requestAnimationFrame`), sin librerías: subrayado dibujado a mano en el titular, entrada escalonada del texto, cinta continua con las comprobaciones (con botón de pausa, WCAG 2.2.2), tarjetas con rebote al pasar el ratón, aparición al hacer scroll (`animation-timeline: view()` donde el navegador lo admite), notas que "saltan" al aparecer y nota global que cuenta hasta su valor. Todo está dentro de `prefers-reduced-motion: no-preference` y solo anima `transform`, `opacity` o trazos SVG: sin saltos de maquetación (CLS 0) y el titular no se anima, para no retrasar el LCP.
+
 ## Puntuación
 
 `src/lib/scoring.ts` da una nota de la A a la F por categoría y otra global:
