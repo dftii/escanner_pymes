@@ -135,7 +135,7 @@ Con `200` la respuesta es `application/x-ndjson`, con un evento JSON por línea 
 - URL pública (`src/lib/site.ts`): `NEXT_PUBLIC_SITE_URL` si se define, si no `VERCEL_PROJECT_PRODUCTION_URL` (la pone Vercel), si no `https://escanner-pymes.vercel.app`.
 - `/robots.txt` (bloquea `/api/`) y `/sitemap.xml` con las páginas públicas.
 - Imagen para compartir generada (`src/app/opengraph-image.tsx`, 1200×630) e icono (`src/app/icon.svg`).
-- Preguntas frecuentes en la portada con datos estructurados `WebApplication` y `FAQPage` (JSON-LD con el nonce de la CSP).
+- Preguntas frecuentes en la portada con datos estructurados `WebApplication` y `FAQPage` (JSON-LD: bloque de datos que el navegador no ejecuta, sin nonce).
 
 ## Animaciones
 

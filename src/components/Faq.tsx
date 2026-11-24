@@ -1,4 +1,3 @@
-import { headers } from 'next/headers';
 import { jsonLd, SITE_DESCRIPTION, SITE_NAME, siteUrl } from '@/lib/site';
 
 export const FAQ: ReadonlyArray<{ q: string; a: string }> = [
@@ -28,9 +27,12 @@ export const FAQ: ReadonlyArray<{ q: string; a: string }> = [
   },
 ];
 
-/** Preguntas frecuentes, con datos estructurados para buscadores (JSON-LD). */
-export async function Faq() {
-  const nonce = (await headers()).get('x-nonce') ?? undefined;
+/**
+ * Preguntas frecuentes, con datos estructurados para buscadores (JSON-LD).
+ * El JSON-LD es un bloque de datos que el navegador no ejecuta, así que la CSP
+ * no le aplica y no necesita nonce.
+ */
+export function Faq() {
   const data = [
     {
       '@context': 'https://schema.org',
@@ -77,11 +79,7 @@ export async function Faq() {
           </details>
         ))}
       </div>
-      <script
-        type="application/ld+json"
-        nonce={nonce}
-        dangerouslySetInnerHTML={{ __html: jsonLd(data) }}
-      />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(data) }} />
     </section>
   );
 }
