@@ -1,11 +1,13 @@
 import type { Page } from 'playwright-core';
 import { TRACKERS, type CookieKind } from '../data/known-cookies';
 import { fixFor } from '../data/remediation';
+import { messages, type Locale } from '../i18n';
 import { startEgressProxy, type EgressProxyOptions } from '../net/egressProxy';
 import { ScanError } from '../net/errors';
 import { USER_AGENT } from '../net/safeFetch';
 import type { Finding } from '../types';
 import { classifyCookie } from './privacy';
+import { localizeLabel } from './privacy.messages';
 
 /**
  * Cookies y RGPD, fase 2: abre la web en un Chromium real (sin aceptar nada,
@@ -64,8 +66,71 @@ export function trackersContacted(requests: readonly string[]): string[] {
   return [...found];
 }
 
-const describe = (c: ClassifiedCookie) =>
-  `${c.name} (${c.owner ?? (c.thirdParty ? siteOf(c.domain) : 'desconocida')})`;
+export const MSG = messages({
+  es: {
+    unknown: 'desconocida',
+    contacted: (list: string) => ` Además, la página llamó a: ${list}.`,
+    failTitle: 'Los scripts de tu web instalan cookies de seguimiento sin pedir permiso',
+    failDetail: (list: string, contacted: string) =>
+      `Abrimos tu web con un navegador real, sin aceptar nada, y se crearon: ${list}.${contacted}`,
+    failRisk:
+      'Estas cookies necesitan consentimiento previo: instalarlas antes de que el usuario acepte es de lo que más sanciona la AEPD.',
+    unknownTitle: 'Los scripts de tu web crean cookies que no reconocemos',
+    unknownDetail: (list: string, contacted: string) =>
+      `Con un navegador real, sin aceptar nada, se crearon: ${list}.${contacted}`,
+    unknownRisk:
+      'Si no son técnicas (necesarias para que la web funcione), necesitan consentimiento previo.',
+    okTitle: 'Sin cookies de seguimiento al cargar la web con un navegador real',
+    okTechnical: (list: string) =>
+      `Los scripts solo crean cookies técnicas o de preferencias: ${list}.`,
+    okNone:
+      'Abrimos tu web con un navegador real, sin aceptar nada, y los scripts no crearon cookies.',
+    okRisk: 'Las cookies técnicas no necesitan consentimiento.',
+  },
+  ca: {
+    unknown: 'desconeguda',
+    contacted: (list: string) => ` A més, la pàgina va cridar: ${list}.`,
+    failTitle: 'Els scripts del teu web instal·len galetes de seguiment sense demanar permís',
+    failDetail: (list: string, contacted: string) =>
+      `Vam obrir el teu web amb un navegador real, sense acceptar res, i es van crear: ${list}.${contacted}`,
+    failRisk:
+      "Aquestes galetes necessiten consentiment previ: instal·lar-les abans que l'usuari accepti és del que més sanciona l'AEPD.",
+    unknownTitle: 'Els scripts del teu web creen galetes que no reconeixem',
+    unknownDetail: (list: string, contacted: string) =>
+      `Amb un navegador real, sense acceptar res, es van crear: ${list}.${contacted}`,
+    unknownRisk:
+      'Si no són tècniques (necessàries perquè el web funcioni), necessiten consentiment previ.',
+    okTitle: 'Sense galetes de seguiment en carregar el web amb un navegador real',
+    okTechnical: (list: string) =>
+      `Els scripts només creen galetes tècniques o de preferències: ${list}.`,
+    okNone:
+      'Vam obrir el teu web amb un navegador real, sense acceptar res, i els scripts no van crear galetes.',
+    okRisk: 'Les galetes tècniques no necessiten consentiment.',
+  },
+  en: {
+    unknown: 'unknown',
+    contacted: (list: string) => ` The page also contacted: ${list}.`,
+    failTitle: "Your website's scripts set tracking cookies without asking for permission",
+    failDetail: (list: string, contacted: string) =>
+      `We opened your website in a real browser, without accepting anything, and these were created: ${list}.${contacted}`,
+    failRisk:
+      'These cookies need prior consent: setting them before the user accepts is one of the breaches the Spanish DPA (AEPD) fines most.',
+    unknownTitle: "Your website's scripts create cookies we do not recognise",
+    unknownDetail: (list: string, contacted: string) =>
+      `In a real browser, without accepting anything, these were created: ${list}.${contacted}`,
+    unknownRisk:
+      'If they are not technical (needed for the website to work), they need prior consent.',
+    okTitle: 'No tracking cookies when loading the website in a real browser',
+    okTechnical: (list: string) =>
+      `The scripts only create technical or preference cookies: ${list}.`,
+    okNone:
+      'We opened your website in a real browser, without accepting anything, and the scripts created no cookies.',
+    okRisk: 'Technical cookies do not need consent.',
+  },
+});
+
+const describe = (c: ClassifiedCookie, locale: Locale) =>
+  `${c.name} (${c.owner ? localizeLabel(c.owner, locale) : c.thirdParty ? siteOf(c.domain) : MSG[locale].unknown})`;
 
 /**
  * @param serverCookies nombres de las cookies que ya puso el servidor: esas
@@ -74,7 +139,10 @@ const describe = (c: ClassifiedCookie) =>
 export function analyzeBrowserCookies(
   obs: BrowserObservation,
   serverCookies: readonly string[] = [],
+  locale: Locale = 'es',
 ): Finding {
+  const m = MSG[locale];
+  const names = (list: ClassifiedCookie[]) => list.map((c) => describe(c, locale)).join(', ');
   const skip = new Set(serverCookies);
   const seen = new Set<string>();
   const cookies: ClassifiedCookie[] = [];
@@ -109,38 +177,34 @@ export function analyzeBrowserCookies(
     blockedConnections: obs.blocked,
   };
   const base = { id: BROWSER_FINDING_ID, category: 'privacy' as const, evidence };
-  const contactedText =
-    contacted.length > 0 ? ` Además, la página llamó a: ${contacted.join(', ')}.` : '';
+  const contactedText = contacted.length > 0 ? m.contacted(contacted.join(', ')) : '';
 
   if (tracking.length > 0) {
     return {
       ...base,
       status: 'fail',
-      title: 'Los scripts de tu web instalan cookies de seguimiento sin pedir permiso',
-      detail: `Abrimos tu web con un navegador real, sin aceptar nada, y se crearon: ${tracking.map(describe).join(', ')}.${contactedText}`,
-      risk: 'Estas cookies necesitan consentimiento previo: instalarlas antes de que el usuario acepte es de lo que más sanciona la AEPD.',
-      fix: fixFor('privacy.cookies_js'),
+      title: m.failTitle,
+      detail: m.failDetail(names(tracking), contactedText),
+      risk: m.failRisk,
+      fix: fixFor('privacy.cookies_js', locale),
     };
   }
   if (unknown.length > 0) {
     return {
       ...base,
       status: 'info',
-      title: 'Los scripts de tu web crean cookies que no reconocemos',
-      detail: `Con un navegador real, sin aceptar nada, se crearon: ${unknown.map(describe).join(', ')}.${contactedText}`,
-      risk: 'Si no son técnicas (necesarias para que la web funcione), necesitan consentimiento previo.',
-      fix: fixFor('privacy.cookies_unknown'),
+      title: m.unknownTitle,
+      detail: m.unknownDetail(names(unknown), contactedText),
+      risk: m.unknownRisk,
+      fix: fixFor('privacy.cookies_unknown', locale),
     };
   }
   return {
     ...base,
     status: 'ok',
-    title: 'Sin cookies de seguimiento al cargar la web con un navegador real',
-    detail:
-      cookies.length > 0
-        ? `Los scripts solo crean cookies técnicas o de preferencias: ${cookies.map(describe).join(', ')}.`
-        : 'Abrimos tu web con un navegador real, sin aceptar nada, y los scripts no crearon cookies.',
-    risk: 'Las cookies técnicas no necesitan consentimiento.',
+    title: m.okTitle,
+    detail: cookies.length > 0 ? m.okTechnical(names(cookies)) : m.okNone,
+    risk: m.okRisk,
     fix: [],
   };
 }

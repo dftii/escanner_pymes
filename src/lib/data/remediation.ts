@@ -1,3 +1,7 @@
+import type { Locale } from '../i18n';
+import { REMEDIATION_CA } from './remediation.ca';
+import { REMEDIATION_EN } from './remediation.en';
+
 /**
  * Pasos para arreglar cada problema, en lenguaje llano y por plataforma.
  * Se agrupan por id de hallazgo para poder revisarlos todos en un sitio.
@@ -195,4 +199,12 @@ export const REMEDIATION = {
 
 export type RemediationId = keyof typeof REMEDIATION;
 
-export const fixFor = (id: RemediationId): string[] => [...REMEDIATION[id]];
+const BY_LOCALE: Record<Locale, Record<RemediationId, readonly string[]>> = {
+  es: REMEDIATION,
+  ca: REMEDIATION_CA,
+  en: REMEDIATION_EN,
+};
+
+export const fixFor = (id: RemediationId, locale: Locale = 'es'): string[] => [
+  ...BY_LOCALE[locale][id],
+];

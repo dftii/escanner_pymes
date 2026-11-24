@@ -1,4 +1,5 @@
 import { fixFor } from '../data/remediation';
+import { LOCALE_TAGS, messages, type Locale } from '../i18n';
 import { ScanError } from '../net/errors';
 import { safeFetch } from '../net/safeFetch';
 import type { Finding } from '../types';
@@ -27,22 +28,81 @@ export type Breach = {
   isVerified: boolean;
 };
 
-const DATA_LABELS: Record<string, string> = {
-  'Email addresses': 'emails',
-  Passwords: 'contraseñas',
-  Names: 'nombres',
-  'Phone numbers': 'teléfonos',
-  'Physical addresses': 'direcciones',
-  'Dates of birth': 'fechas de nacimiento',
-  'IP addresses': 'IPs',
-  Usernames: 'nombres de usuario',
-  'Credit cards': 'tarjetas',
-  'Partial credit card data': 'datos parciales de tarjetas',
-  'Bank account numbers': 'cuentas bancarias',
-  'Government issued IDs': 'documentos de identidad',
-  Genders: 'género',
-  Purchases: 'compras',
+/** Tipos de datos filtrados (HIBP los da en inglés). */
+const DATA_LABELS: Record<string, { es: string; ca: string }> = {
+  'Email addresses': { es: 'emails', ca: 'correus' },
+  Passwords: { es: 'contraseñas', ca: 'contrasenyes' },
+  Names: { es: 'nombres', ca: 'noms' },
+  'Phone numbers': { es: 'teléfonos', ca: 'telèfons' },
+  'Physical addresses': { es: 'direcciones', ca: 'adreces' },
+  'Dates of birth': { es: 'fechas de nacimiento', ca: 'dates de naixement' },
+  'IP addresses': { es: 'IPs', ca: 'IP' },
+  Usernames: { es: 'nombres de usuario', ca: "noms d'usuari" },
+  'Credit cards': { es: 'tarjetas', ca: 'targetes' },
+  'Partial credit card data': {
+    es: 'datos parciales de tarjetas',
+    ca: 'dades parcials de targetes',
+  },
+  'Bank account numbers': { es: 'cuentas bancarias', ca: 'comptes bancaris' },
+  'Government issued IDs': { es: 'documentos de identidad', ca: "documents d'identitat" },
+  Genders: { es: 'género', ca: 'gènere' },
+  Purchases: { es: 'compras', ca: 'compres' },
 };
+
+const dataLabel = (d: string, locale: Locale) =>
+  locale === 'en' ? d.toLowerCase() : (DATA_LABELS[d]?.[locale] ?? d.toLowerCase());
+
+export const MSG = messages({
+  es: {
+    unknownDate: 'fecha desconocida',
+    accounts: (n: string) => `${n} cuentas`,
+    okTitle: 'Tu web no aparece en filtraciones de datos conocidas',
+    okDetail: (d: string) =>
+      `Have I Been Pwned no tiene registrada ninguna filtración pública con origen en ${d}.`,
+    okRisk:
+      'Solo recoge filtraciones que se han hecho públicas: no garantiza que nunca haya habido una.',
+    title: (n: number) =>
+      n === 1
+        ? 'Tu web aparece en una filtración de datos pública'
+        : `Tu web aparece en ${n} filtraciones de datos públicas`,
+    detail: (list: string) => `Según Have I Been Pwned: ${list}.`,
+    passwords:
+      'Se filtraron contraseñas: tus clientes pueden estar reutilizándolas en otros sitios. ',
+    risk: 'Los datos filtrados se usan para enviar phishing creíble en nombre de tu negocio.',
+  },
+  ca: {
+    unknownDate: 'data desconeguda',
+    accounts: (n: string) => `${n} comptes`,
+    okTitle: 'El teu web no apareix en filtracions de dades conegudes',
+    okDetail: (d: string) =>
+      `Have I Been Pwned no té registrada cap filtració pública originada a ${d}.`,
+    okRisk:
+      "Només recull filtracions que s'han fet públiques: no garanteix que no n'hi hagi hagut mai cap.",
+    title: (n: number) =>
+      n === 1
+        ? 'El teu web apareix en una filtració de dades pública'
+        : `El teu web apareix en ${n} filtracions de dades públiques`,
+    detail: (list: string) => `Segons Have I Been Pwned: ${list}.`,
+    passwords:
+      'Es van filtrar contrasenyes: els teus clients poden estar reutilitzant-les en altres llocs. ',
+    risk: 'Les dades filtrades es fan servir per enviar phishing creïble en nom del teu negoci.',
+  },
+  en: {
+    unknownDate: 'unknown date',
+    accounts: (n: string) => `${n} accounts`,
+    okTitle: 'Your website does not appear in any known data breach',
+    okDetail: (d: string) => `Have I Been Pwned has no public breach recorded for ${d}.`,
+    okRisk:
+      'It only covers breaches that have been made public: it does not guarantee there has never been one.',
+    title: (n: number) =>
+      n === 1
+        ? 'Your website appears in a public data breach'
+        : `Your website appears in ${n} public data breaches`,
+    detail: (list: string) => `According to Have I Been Pwned: ${list}.`,
+    passwords: 'Passwords were leaked: your customers may be reusing them on other sites. ',
+    risk: 'Leaked data is used to send convincing phishing in your business’s name.',
+  },
+});
 
 export function parseBreaches(json: unknown): Breach[] {
   if (!Array.isArray(json))
@@ -65,16 +125,22 @@ export function parseBreaches(json: unknown): Breach[] {
   );
 }
 
-const fmt = new Intl.NumberFormat('es-ES');
-
-function describeBreach(b: Breach): string {
-  const year = b.breachDate.slice(0, 4) || 'fecha desconocida';
-  const data = b.dataClasses.map((d) => DATA_LABELS[d] ?? d.toLowerCase()).slice(0, 5);
-  return `${b.title} (${year}, ${fmt.format(b.pwnCount)} cuentas${data.length ? `: ${data.join(', ')}` : ''})`;
+function describeBreach(b: Breach, locale: Locale): string {
+  const m = MSG[locale];
+  const year = b.breachDate.slice(0, 4) || m.unknownDate;
+  const data = b.dataClasses.map((d) => dataLabel(d, locale)).slice(0, 5);
+  const count = m.accounts(new Intl.NumberFormat(LOCALE_TAGS[locale]).format(b.pwnCount));
+  return `${b.title} (${year}, ${count}${data.length ? `: ${data.join(', ')}` : ''})`;
 }
 
 /** Función pura: convierte las filtraciones en un hallazgo. */
-export function breachesFinding(domain: string, breaches: readonly Breach[], now: Date): Finding {
+export function breachesFinding(
+  domain: string,
+  breaches: readonly Breach[],
+  now: Date,
+  locale: Locale = 'es',
+): Finding {
+  const m = MSG[locale];
   const base = {
     id: 'privacy.breaches',
     category: 'privacy' as const,
@@ -85,9 +151,9 @@ export function breachesFinding(domain: string, breaches: readonly Breach[], now
     return {
       ...base,
       status: 'ok',
-      title: 'Tu web no aparece en filtraciones de datos conocidas',
-      detail: `Have I Been Pwned no tiene registrada ninguna filtración pública con origen en ${domain}.`,
-      risk: 'Solo recoge filtraciones que se han hecho públicas: no garantiza que nunca haya habido una.',
+      title: m.okTitle,
+      detail: m.okDetail(domain),
+      risk: m.okRisk,
       fix: [],
     };
   }
@@ -98,17 +164,14 @@ export function breachesFinding(domain: string, breaches: readonly Breach[], now
   return {
     ...base,
     status: recent ? 'warning' : 'info',
-    title:
-      verified.length === 1
-        ? 'Tu web aparece en una filtración de datos pública'
-        : `Tu web aparece en ${verified.length} filtraciones de datos públicas`,
-    detail: `Según Have I Been Pwned: ${verified.map(describeBreach).join('; ')}.`,
-    risk: `${passwords ? 'Se filtraron contraseñas: tus clientes pueden estar reutilizándolas en otros sitios. ' : ''}Los datos filtrados se usan para enviar phishing creíble en nombre de tu negocio.`,
-    fix: fixFor('privacy.breaches'),
+    title: m.title(verified.length),
+    detail: m.detail(verified.map((b) => describeBreach(b, locale)).join('; ')),
+    risk: `${passwords ? m.passwords : ''}${m.risk}`,
+    fix: fixFor('privacy.breaches', locale),
   };
 }
 
-export type BreachDeps = { fetch?: typeof safeFetch; now?: () => Date };
+export type BreachDeps = { fetch?: typeof safeFetch; now?: () => Date; locale?: Locale };
 
 export async function checkBreaches(domain: string, deps: BreachDeps = {}): Promise<Finding> {
   const name = emailDomainOf(domain);
@@ -126,5 +189,5 @@ export async function checkBreaches(domain: string, deps: BreachDeps = {}): Prom
   } catch {
     throw new ScanError('network', 'Respuesta inesperada de Have I Been Pwned.', 502);
   }
-  return breachesFinding(name, parseBreaches(json), deps.now?.() ?? new Date());
+  return breachesFinding(name, parseBreaches(json), deps.now?.() ?? new Date(), deps.locale);
 }

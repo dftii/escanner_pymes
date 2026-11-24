@@ -11,7 +11,9 @@ import {
   type BrowserRunner,
 } from './checks/browserCookies';
 import { mixedContentFinding } from './checks/mixedContent';
-import { checkPrivacy, parseSetCookie, PRIVACY_DISCLAIMER } from './checks/privacy';
+import { checkPrivacy, parseSetCookie } from './checks/privacy';
+import { PRIVACY_MSG } from './checks/privacy.messages';
+import type { Locale } from './i18n';
 import { checkSsl, type SslDeps } from './checks/ssl';
 import { errorFinding } from './findings';
 import type { DnsClient } from './net/dnsClient';
@@ -29,6 +31,8 @@ export type ScanDeps = {
    * `null` lo desactiva siempre.
    */
   browser?: BrowserRunner | null;
+  /** Idioma de los textos del informe. */
+  locale?: Locale;
 };
 
 export type ScanResult = {
@@ -76,6 +80,9 @@ export async function runScan(
 ): Promise<ScanResult> {
   const started = Date.now();
   const fetcher = deps.fetch ?? safeFetch;
+  const locale = deps.locale ?? 'es';
+  const guard = (id: string, category: Category, run: () => Finding[] | Promise<Finding[]>) =>
+    guardCheck(id, category, run, locale);
   const browser =
     deps.browser === undefined
       ? isHeadlessEnabled()
@@ -92,35 +99,35 @@ export async function runScan(
   const tasks: Record<Category, Promise<Finding[]>> = {
     ssl: Promise.all([
       guard('ssl.certificate', 'ssl', () =>
-        checkSsl(domain, { fetch: fetcher, probe: deps.probe, now: deps.now }),
+        checkSsl(domain, { fetch: fetcher, probe: deps.probe, now: deps.now, locale }),
       ),
       guard('ssl.mixed_content', 'ssl', async () => {
-        const finding = mixedContentFinding(await pages);
+        const finding = mixedContentFinding(await pages, locale);
         return finding ? [finding] : [];
       }),
     ]).then((parts) => parts.flat()),
     headers: Promise.all([
-      guard('headers.fetch', 'headers', async () => checkHeaders(await home)),
+      guard('headers.fetch', 'headers', async () => checkHeaders(await home, locale)),
       guard('headers.cms', 'headers', async () => {
         const page = await home.catch(() => null);
         if (!page) return [];
-        const finding = await checkCms(page, { fetch: fetcher });
+        const finding = await checkCms(page, { fetch: fetcher, locale });
         return finding ? [finding] : [];
       }),
     ]).then((parts) => parts.flat()),
     email: Promise.all([
-      guard('email.dns', 'email', () => checkEmailDns(domain, deps.dns)),
-      guard('email.exposed', 'email', async () => [analyzeEmailExposure(await pages)]),
+      guard('email.dns', 'email', () => checkEmailDns(domain, deps.dns, locale)),
+      guard('email.exposed', 'email', async () => [analyzeEmailExposure(await pages, locale)]),
     ]).then((parts) => parts.flat()),
     privacy: Promise.all([
-      guard('privacy.scan', 'privacy', async () => checkPrivacy(await home, await pages)),
+      guard('privacy.scan', 'privacy', async () => checkPrivacy(await home, await pages, locale)),
       guard('privacy.breaches', 'privacy', async () => [
-        await checkBreaches(domain, { fetch: fetcher, now: deps.now }),
+        await checkBreaches(domain, { fetch: fetcher, now: deps.now, locale }),
       ]),
       browser
         ? guard(BROWSER_FINDING_ID, 'privacy', async () => {
             const observation = await browser(domain);
-            return [analyzeBrowserCookies(observation, await serverCookieNames(home))];
+            return [analyzeBrowserCookies(observation, await serverCookieNames(home), locale)];
           })
         : Promise.resolve([]),
     ]).then((parts) => parts.flat()),
@@ -139,7 +146,7 @@ export async function runScan(
     finalUrl: homePage?.url ?? null,
     durationMs: Date.now() - started,
     findings: results.flat(),
-    notices: [PRIVACY_DISCLAIMER],
+    notices: [PRIVACY_MSG[locale].disclaimer],
   };
 }
 
@@ -153,14 +160,15 @@ async function serverCookieNames(home: Promise<SafeResponse>): Promise<string[]>
 }
 
 /** Ejecuta un check y convierte cualquier excepción en un hallazgo de error. */
-async function guard(
+async function guardCheck(
   id: string,
   category: Category,
   run: () => Finding[] | Promise<Finding[]>,
+  locale: Locale,
 ): Promise<Finding[]> {
   try {
     return await run();
   } catch (error) {
-    return [errorFinding(id, category, error)];
+    return [errorFinding(id, category, error, locale)];
   }
 }

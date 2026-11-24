@@ -1,5 +1,6 @@
 import * as cheerio from 'cheerio';
 import { fixFor } from '../data/remediation';
+import { messages, type Locale } from '../i18n';
 import { ScanError } from '../net/errors';
 import { safeFetch, type SafeResponse } from '../net/safeFetch';
 import type { Finding } from '../types';
@@ -112,8 +113,98 @@ export const resetWordPressCache = () => {
 
 const base = { id: 'headers.cms', category: 'headers' as const };
 
+export const MSG = messages({
+  es: {
+    oldTitle: (n: string) => `Tu web usa ${n}, una versión antigua`,
+    oldDetail: (latest: string) =>
+      `La última es la ${latest}. Las versiones antiguas tienen fallos de seguridad conocidos y públicos, y los robots los buscan automáticamente.`,
+    oldRisk:
+      'WordPress desactualizado es la causa más común de webs de pymes hackeadas: spam, redirecciones a otras webs o robo de datos.',
+    updateTitle: (v: string, latest: string) =>
+      `Hay una actualización de WordPress pendiente (${v} → ${latest})`,
+    branchDetail: (n: string, latest: string) => `Usas ${n} y ya existe la ${latest}.`,
+    patchDetail: (n: string, latest: string) =>
+      `Usas ${n}; la ${latest} trae correcciones, normalmente de seguridad.`,
+    updateRisk:
+      'Las actualizaciones menores suelen corregir fallos de seguridad: cuanto antes, mejor.',
+    drupalTitle: (n: string) => `Tu web usa ${n}, que ya no recibe parches de seguridad`,
+    drupalDetail: (v: string, min: number) =>
+      `Drupal ${v} está fuera de soporte. Las versiones con soporte son la ${min} y posteriores.`,
+    drupalRisk: 'Los fallos que se descubran a partir de ahora no se corregirán.',
+    showsTitle: (n: string) => `Tu web muestra que usa ${n}`,
+    usesTitle: (n: string) => `Tu web usa ${n}`,
+    upToDateVisible: (source: string) =>
+      `Está al día, pero la versión se ve en el código de la página (${source}).`,
+    visible: (source: string) => `La versión se ve en el código de la página (${source}).`,
+    hidden: 'No se ve qué versión usa, así que no podemos saber si está al día.',
+    visibleRisk:
+      'Mostrar la versión ayuda a los atacantes a saber qué fallos probar cuando quede desactualizada.',
+    hiddenRisk:
+      'Mantén el núcleo, los plugins y el tema siempre actualizados: es la principal vía de ataque.',
+  },
+  ca: {
+    oldTitle: (n: string) => `El teu web fa servir ${n}, una versió antiga`,
+    oldDetail: (latest: string) =>
+      `L'última és la ${latest}. Les versions antigues tenen errors de seguretat coneguts i públics, i els robots els busquen automàticament.`,
+    oldRisk:
+      'Un WordPress desactualitzat és la causa més habitual de webs de pimes piratejats: correu brossa, redireccions a altres webs o robatori de dades.',
+    updateTitle: (v: string, latest: string) =>
+      `Hi ha una actualització de WordPress pendent (${v} → ${latest})`,
+    branchDetail: (n: string, latest: string) => `Fas servir ${n} i ja existeix la ${latest}.`,
+    patchDetail: (n: string, latest: string) =>
+      `Fas servir ${n}; la ${latest} porta correccions, normalment de seguretat.`,
+    updateRisk:
+      'Les actualitzacions menors solen corregir errors de seguretat: com més aviat, millor.',
+    drupalTitle: (n: string) => `El teu web fa servir ${n}, que ja no rep pedaços de seguretat`,
+    drupalDetail: (v: string, min: number) =>
+      `Drupal ${v} està fora de suport. Les versions amb suport són la ${min} i posteriors.`,
+    drupalRisk: "Els errors que es descobreixin a partir d'ara no es corregiran.",
+    showsTitle: (n: string) => `El teu web mostra que fa servir ${n}`,
+    usesTitle: (n: string) => `El teu web fa servir ${n}`,
+    upToDateVisible: (source: string) =>
+      `Està al dia, però la versió es veu al codi de la pàgina (${source}).`,
+    visible: (source: string) => `La versió es veu al codi de la pàgina (${source}).`,
+    hidden: 'No es veu quina versió fa servir, així que no podem saber si està al dia.',
+    visibleRisk:
+      'Mostrar la versió ajuda els atacants a saber quins errors provar quan quedi desactualitzada.',
+    hiddenRisk:
+      "Mantén el nucli, els plugins i el tema sempre actualitzats: és la principal via d'atac.",
+  },
+  en: {
+    oldTitle: (n: string) => `Your website uses ${n}, an old version`,
+    oldDetail: (latest: string) =>
+      `The latest is ${latest}. Old versions have known, public security flaws, and robots look for them automatically.`,
+    oldRisk:
+      'Outdated WordPress is the most common reason small business websites get hacked: spam, redirects to other sites or data theft.',
+    updateTitle: (v: string, latest: string) => `A WordPress update is pending (${v} → ${latest})`,
+    branchDetail: (n: string, latest: string) => `You use ${n} and ${latest} is already out.`,
+    patchDetail: (n: string, latest: string) =>
+      `You use ${n}; ${latest} brings fixes, usually security ones.`,
+    updateRisk: 'Minor updates usually fix security flaws: the sooner, the better.',
+    drupalTitle: (n: string) => `Your website uses ${n}, which no longer gets security patches`,
+    drupalDetail: (v: string, min: number) =>
+      `Drupal ${v} is out of support. Supported versions are ${min} and later.`,
+    drupalRisk: 'Flaws discovered from now on will not be fixed.',
+    showsTitle: (n: string) => `Your website shows that it uses ${n}`,
+    usesTitle: (n: string) => `Your website uses ${n}`,
+    upToDateVisible: (source: string) =>
+      `It is up to date, but the version can be seen in the page code (${source}).`,
+    visible: (source: string) => `The version can be seen in the page code (${source}).`,
+    hidden: 'We cannot see which version it uses, so we cannot tell whether it is up to date.',
+    visibleRisk:
+      'Showing the version helps attackers know which flaws to try once it goes out of date.',
+    hiddenRisk:
+      'Keep the core, plugins and theme always up to date: they are the main way in for attackers.',
+  },
+});
+
 /** Función pura: decide el hallazgo con la versión detectada y la última conocida. */
-export function cmsFinding(cms: CmsDetection, latest: string | null): Finding {
+export function cmsFinding(
+  cms: CmsDetection,
+  latest: string | null,
+  locale: Locale = 'es',
+): Finding {
+  const m = MSG[locale];
   const evidence = { ...cms, latest };
   const named = cms.version ? `${cms.name} ${cms.version}` : cms.name;
 
@@ -123,10 +214,10 @@ export function cmsFinding(cms: CmsDetection, latest: string | null): Finding {
       return {
         ...base,
         status: 'fail',
-        title: `Tu web usa ${named}, una versión antigua`,
-        detail: `La última es la ${latest}. Las versiones antiguas tienen fallos de seguridad conocidos y públicos, y los robots los buscan automáticamente.`,
-        risk: 'WordPress desactualizado es la causa más común de webs de pymes hackeadas: spam, redirecciones a otras webs o robo de datos.',
-        fix: fixFor('headers.cms'),
+        title: m.oldTitle(named),
+        detail: m.oldDetail(latest),
+        risk: m.oldRisk,
+        fix: fixFor('headers.cms', locale),
         evidence,
       };
     }
@@ -134,13 +225,10 @@ export function cmsFinding(cms: CmsDetection, latest: string | null): Finding {
       return {
         ...base,
         status: 'warning',
-        title: `Hay una actualización de WordPress pendiente (${cms.version} → ${latest})`,
-        detail:
-          behind === 1
-            ? `Usas ${named} y ya existe la ${latest}.`
-            : `Usas ${named}; la ${latest} trae correcciones, normalmente de seguridad.`,
-        risk: 'Las actualizaciones menores suelen corregir fallos de seguridad: cuanto antes, mejor.',
-        fix: fixFor('headers.cms'),
+        title: m.updateTitle(cms.version, latest),
+        detail: behind === 1 ? m.branchDetail(named, latest) : m.patchDetail(named, latest),
+        risk: m.updateRisk,
+        fix: fixFor('headers.cms', locale),
         evidence,
       };
     }
@@ -149,29 +237,29 @@ export function cmsFinding(cms: CmsDetection, latest: string | null): Finding {
     return {
       ...base,
       status: 'fail',
-      title: `Tu web usa ${named}, que ya no recibe parches de seguridad`,
-      detail: `Drupal ${cms.version} está fuera de soporte. Las versiones con soporte son la ${DRUPAL_SUPPORTED_MAJOR} y posteriores.`,
-      risk: 'Los fallos que se descubran a partir de ahora no se corregirán.',
-      fix: fixFor('headers.cms'),
+      title: m.drupalTitle(named),
+      detail: m.drupalDetail(cms.version, DRUPAL_SUPPORTED_MAJOR),
+      risk: m.drupalRisk,
+      fix: fixFor('headers.cms', locale),
       evidence,
     };
   }
   return {
     ...base,
     status: 'info',
-    title: cms.version ? `Tu web muestra que usa ${named}` : `Tu web usa ${named}`,
+    title: cms.version ? m.showsTitle(named) : m.usesTitle(named),
     detail: cms.version
-      ? `${latest && cms.name === 'WordPress' ? 'Está al día, pero l' : 'L'}a versión se ve en el código de la página (${cms.source}).`
-      : `No se ve qué versión usa, así que no podemos saber si está al día.`,
-    risk: cms.version
-      ? 'Mostrar la versión ayuda a los atacantes a saber qué fallos probar cuando quede desactualizada.'
-      : 'Mantén el núcleo, los plugins y el tema siempre actualizados: es la principal vía de ataque.',
-    fix: fixFor('headers.cms_info'),
+      ? latest && cms.name === 'WordPress'
+        ? m.upToDateVisible(cms.source)
+        : m.visible(cms.source)
+      : m.hidden,
+    risk: cms.version ? m.visibleRisk : m.hiddenRisk,
+    fix: fixFor('headers.cms_info', locale),
     evidence,
   };
 }
 
-export type CmsDeps = { fetch?: typeof safeFetch };
+export type CmsDeps = { fetch?: typeof safeFetch; locale?: Locale };
 
 /** `null` si la web no usa un gestor de contenidos reconocible. */
 export async function checkCms(home: SafeResponse, deps: CmsDeps = {}): Promise<Finding | null> {
@@ -182,5 +270,5 @@ export async function checkCms(home: SafeResponse, deps: CmsDeps = {}): Promise<
     // Si la API no responde, se informa sin juzgar la versión.
     latest = await latestWordPress(deps.fetch).catch(() => null);
   }
-  return cmsFinding(cms, latest);
+  return cmsFinding(cms, latest, deps.locale);
 }

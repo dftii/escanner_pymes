@@ -221,3 +221,44 @@ describe('runScan con navegador (fase 2)', () => {
     }
   });
 });
+
+describe('runScan en otros idiomas', () => {
+  const home = {
+    ...page('https://minegocio.es/', 200, { server: 'Apache/2.4.1' }),
+    body: '<meta name="generator" content="WordPress 5.0"><form><input name="email"></form><script src="https://www.googletagmanager.com/gtm.js?id=GTM-X"></script><img src="http://x.es/a.jpg">',
+    setCookies: ['_ga=1; Path=/'],
+  };
+  const run = (locale: 'ca' | 'en') =>
+    runScan('minegocio.es', {
+      now: () => NOW,
+      dns: fakeDns({}),
+      probe,
+      locale,
+      fetch: fetchFrom({ 'https://minegocio.es/': home }),
+    });
+  // Palabras que delatarían un texto en español sin traducir.
+  const SPANISH = /\b(tu|tus|los|las|del|está|hemos|correo|cifrar|sin problemas|falta)\b/i;
+  const CATALAN_ONLY = /\b(el teu|els|les|hem|correu|xifrar|cap problema)\b/i;
+
+  it('en inglés no queda texto en español ni en catalán', async () => {
+    const result = await run('en');
+    for (const f of result.findings) {
+      for (const text of [f.title, f.detail, f.risk, ...f.fix]) {
+        expect(text, `${f.id}: ${text}`).not.toMatch(SPANISH);
+        expect(text, `${f.id}: ${text}`).not.toMatch(CATALAN_ONLY);
+      }
+    }
+    expect(result.notices[0]).toContain('guide only');
+  });
+
+  it('en catalán no queda texto en español', async () => {
+    const result = await run('ca');
+    const SPANISH_ONLY = /\b(tu web|los|las|está|hemos|correo|sin problemas)\b/i;
+    for (const f of result.findings) {
+      for (const text of [f.title, f.detail, f.risk, ...f.fix]) {
+        expect(text, `${f.id}: ${text}`).not.toMatch(SPANISH_ONLY);
+      }
+    }
+    expect(result.notices[0]).toContain('orientatius');
+  });
+});

@@ -7,12 +7,15 @@ import {
   type TrackerRule,
 } from '../data/known-cookies';
 import { fixFor } from '../data/remediation';
+import type { Locale } from '../i18n';
+import { localizeLabel, PRIVACY_MSG } from './privacy.messages';
 import type { SafeResponse } from '../net/safeFetch';
 import type { Finding } from '../types';
 
 /** Aviso que acompaña a todo el apartado de cookies y RGPD. */
-export const PRIVACY_DISCLAIMER =
-  'Los resultados sobre cookies y RGPD son orientativos: se basan en lo que se ve al cargar la web sin aceptar nada y no sustituyen el asesoramiento legal.';
+export const PRIVACY_DISCLAIMER = PRIVACY_MSG.es.disclaimer;
+
+type M = (typeof PRIVACY_MSG)['es'];
 
 const base = { category: 'privacy' } as const;
 
@@ -23,7 +26,12 @@ type Page = Pick<SafeResponse, 'url' | 'body' | 'setCookies' | 'redirects'>;
  * scripts de seguimiento en el HTML inicial, banner de cookies, páginas
  * legales y formularios. Función pura: no hace red.
  */
-export function checkPrivacy(home: Page, pages: readonly Page[] = [home]): Finding[] {
+export function checkPrivacy(
+  home: Page,
+  pages: readonly Page[] = [home],
+  locale: Locale = 'es',
+): Finding[] {
+  const m = PRIVACY_MSG[locale];
   const $ = cheerio.load(home.body);
   const all = pages.includes(home) ? pages : [home, ...pages];
   const cookies = collectCookies(all);
@@ -39,11 +47,11 @@ export function checkPrivacy(home: Page, pages: readonly Page[] = [home]): Findi
     scripts.blocked.length > 0;
 
   return [
-    cookiesFinding(cookies),
-    trackersFinding(scripts, cmp),
-    bannerFinding(cmp, needsConsent),
-    ...legalFindings($, home.url, needsConsent || cmp.kind !== 'none'),
-    formsFinding(pages),
+    cookiesFinding(cookies, m, locale),
+    trackersFinding(scripts, cmp, m, locale),
+    bannerFinding(cmp, needsConsent, m, locale),
+    ...legalFindings($, home.url, needsConsent || cmp.kind !== 'none', m, locale),
+    formsFinding(pages, m, locale),
   ];
 }
 
@@ -92,21 +100,23 @@ function collectCookies(pages: readonly Page[]): ServerCookie[] {
   return [...byName.values()];
 }
 
-const KIND_LABEL: Record<CookieKind | 'unknown', string> = {
-  technical: 'técnica',
-  preferences: 'de preferencias',
-  analytics: 'de analítica',
-  advertising: 'de publicidad',
-  unknown: 'desconocida',
-};
+const kindLabel = (kind: CookieKind | 'unknown', m: M): string =>
+  ({
+    technical: m.kindTechnical,
+    preferences: m.kindPreferences,
+    analytics: m.kindAnalytics,
+    advertising: m.kindAdvertising,
+    unknown: m.kindUnknown,
+  })[kind];
 
-const describeCookie = (c: ServerCookie) => `${c.name} (${c.owner ?? KIND_LABEL[c.kind]})`;
+const describeCookie = (c: ServerCookie, m: M, locale: Locale) =>
+  `${c.name} (${c.owner ? localizeLabel(c.owner, locale) : kindLabel(c.kind, m)})`;
 
-function cookiesFinding(cookies: ServerCookie[]): Finding {
+function cookiesFinding(cookies: ServerCookie[], m: M, locale: Locale): Finding {
   const id = 'privacy.cookies';
   const evidence = { cookies: cookies.map(({ name, kind, owner }) => ({ name, kind, owner })) };
-  const note =
-    'Solo vemos las cookies que envía el servidor; las que crean los scripts se revisan en el apartado de seguimiento.';
+  const describe = (list: ServerCookie[]) =>
+    list.map((c) => describeCookie(c, m, locale)).join(', ');
   const tracking = cookies.filter((c) => c.kind === 'analytics' || c.kind === 'advertising');
   const unknown = cookies.filter((c) => c.kind === 'unknown');
 
@@ -115,10 +125,10 @@ function cookiesFinding(cookies: ServerCookie[]): Finding {
       ...base,
       id,
       status: 'fail',
-      title: 'Tu web instala cookies de seguimiento antes de pedir permiso',
-      detail: `Nada más entrar, sin aceptar nada, se instalan: ${tracking.map(describeCookie).join(', ')}.`,
-      risk: 'Es una de las infracciones que más sanciona la AEPD: estas cookies requieren consentimiento previo.',
-      fix: fixFor('privacy.cookies'),
+      title: m.cookiesFailTitle,
+      detail: m.cookiesFailDetail(describe(tracking)),
+      risk: m.cookiesFailRisk,
+      fix: fixFor('privacy.cookies', locale),
       evidence,
     };
   }
@@ -127,10 +137,10 @@ function cookiesFinding(cookies: ServerCookie[]): Finding {
       ...base,
       id,
       status: 'info',
-      title: 'Tu web instala cookies que no reconocemos',
-      detail: `Al entrar se instalan: ${unknown.map(describeCookie).join(', ')}. ${note}`,
-      risk: 'Si no son técnicas (necesarias para que la web funcione), necesitan consentimiento previo.',
-      fix: fixFor('privacy.cookies_unknown'),
+      title: m.cookiesUnknownTitle,
+      detail: m.cookiesUnknownDetail(describe(unknown), m.cookiesNote),
+      risk: m.cookiesUnknownRisk,
+      fix: fixFor('privacy.cookies_unknown', locale),
       evidence,
     };
   }
@@ -138,12 +148,9 @@ function cookiesFinding(cookies: ServerCookie[]): Finding {
     ...base,
     id,
     status: 'ok',
-    title:
-      cookies.length > 0
-        ? 'Al entrar solo se instalan cookies técnicas'
-        : 'Tu web no instala cookies desde el servidor al entrar',
-    detail: `${cookies.length > 0 ? `Cookies: ${cookies.map(describeCookie).join(', ')}. ` : ''}${note}`,
-    risk: 'Las cookies técnicas no necesitan consentimiento.',
+    title: cookies.length > 0 ? m.cookiesTechTitle : m.cookiesNoneTitle,
+    detail: `${cookies.length > 0 ? m.cookiesList(describe(cookies)) : ''}${m.cookiesNote}`,
+    risk: m.cookiesOkRisk,
     fix: [],
     evidence,
   };
@@ -217,39 +224,34 @@ function matchesTracker(tracker: TrackerRule, src: string, code: string): boolea
 
 const GOOGLE_TAGS = new Set(['Google Tag Manager', 'Google Analytics', 'Google Ads']);
 
-function trackersFinding(scripts: ScriptScan, cmp: CmpDetection): Finding {
+function trackersFinding(scripts: ScriptScan, cmp: CmpDetection, m: M, locale: Locale): Finding {
   const id = 'privacy.trackers';
   const evidence = { ...scripts, cmp: cmp.name };
-  const blockedNote =
-    scripts.blocked.length > 0
-      ? ` Bloqueados hasta que el usuario acepte: ${scripts.blocked.join(', ')}.`
-      : '';
+  const names = (list: string[]) => list.map((n) => localizeLabel(n, locale)).join(', ');
+  const blockedNote = scripts.blocked.length > 0 ? m.blockedNote(names(scripts.blocked)) : '';
 
   if (scripts.active.length === 0) {
     return {
       ...base,
       id,
       status: 'ok',
-      title:
-        scripts.blocked.length > 0
-          ? 'Los scripts de seguimiento esperan al consentimiento'
-          : 'No hemos visto scripts de seguimiento al cargar la web',
-      detail: `Ningún script de analítica o publicidad se ejecuta antes de aceptar.${blockedNote}`,
-      risk: 'Sin problemas.',
+      title: scripts.blocked.length > 0 ? m.trackersWaitTitle : m.trackersNoneTitle,
+      detail: m.trackersOkDetail(blockedNote),
+      risk: m.noProblems,
       fix: [],
       evidence,
     };
   }
 
-  const list = scripts.active.join(', ');
+  const list = names(scripts.active);
   if (scripts.consentModeDenied && scripts.active.every((n) => GOOGLE_TAGS.has(n))) {
     return {
       ...base,
       id,
       status: 'info',
-      title: 'Usas Google Consent Mode con permisos denegados por defecto',
-      detail: `Se cargan ${list}, pero empiezan sin guardar cookies hasta que el usuario acepte.${blockedNote}`,
-      risk: 'Es una configuración aceptada si el banner actualiza el consentimiento correctamente; revísalo con tu proveedor.',
+      title: m.consentModeTitle,
+      detail: m.consentModeDetail(list, blockedNote),
+      risk: m.consentModeRisk,
       fix: [],
       evidence,
     };
@@ -259,10 +261,10 @@ function trackersFinding(scripts: ScriptScan, cmp: CmpDetection): Finding {
       ...base,
       id,
       status: 'warning',
-      title: 'Hay scripts de seguimiento que no parecen esperar al consentimiento',
-      detail: `Tienes banner de cookies, pero en el HTML se cargan sin bloquear: ${list}.${blockedNote} Algunos gestores los bloquean al ejecutarse; compruébalo en el navegador.`,
-      risk: 'Si se ejecutan antes de aceptar, instalan cookies sin permiso aunque haya banner.',
-      fix: fixFor('privacy.trackers'),
+      title: m.trackersCmpTitle,
+      detail: m.trackersCmpDetail(list, blockedNote),
+      risk: m.trackersCmpRisk,
+      fix: fixFor('privacy.trackers', locale),
       evidence,
     };
   }
@@ -270,10 +272,10 @@ function trackersFinding(scripts: ScriptScan, cmp: CmpDetection): Finding {
     ...base,
     id,
     status: 'fail',
-    title: 'Tu web carga scripts de seguimiento sin pedir permiso',
-    detail: `Al entrar se ejecutan ${list}, que instalan cookies de analítica o publicidad, y no hay banner de cookies.${blockedNote}`,
-    risk: 'Es una infracción de la LSSI (art. 22.2) que la AEPD sanciona con frecuencia, también a pequeños negocios.',
-    fix: fixFor('privacy.trackers'),
+    title: m.trackersFailTitle,
+    detail: m.trackersFailDetail(list, blockedNote),
+    risk: m.trackersFailRisk,
+    fix: fixFor('privacy.trackers', locale),
     evidence,
   };
 }
@@ -299,17 +301,16 @@ export function detectCmp(html: string, $: cheerio.CheerioAPI): CmpDetection {
   return generic ? { kind: 'generic', name: null } : { kind: 'none', name: null };
 }
 
-function bannerFinding(cmp: CmpDetection, needsConsent: boolean): Finding {
+function bannerFinding(cmp: CmpDetection, needsConsent: boolean, m: M, locale: Locale): Finding {
   const id = 'privacy.banner';
   if (cmp.kind === 'known') {
     return {
       ...base,
       id,
       status: 'ok',
-      title: `Tienes un gestor de consentimiento de cookies (${cmp.name})`,
-      detail:
-        'Recuerda que, según la AEPD, el botón de "Rechazar" debe estar en la primera capa y ser tan visible como el de "Aceptar".',
-      risk: 'Sin problemas, si está bien configurado.',
+      title: m.bannerKnownTitle(cmp.name ?? ''),
+      detail: m.bannerKnownDetail,
+      risk: m.bannerKnownRisk,
       fix: [],
       evidence: { cmp: cmp.name },
     };
@@ -319,11 +320,10 @@ function bannerFinding(cmp: CmpDetection, needsConsent: boolean): Finding {
       ...base,
       id,
       status: 'info',
-      title: 'Parece que tienes un aviso de cookies',
-      detail:
-        'Hemos visto un aviso de cookies, pero no es un gestor conocido. Comprueba que permite rechazar en la primera capa y que bloquea las cookies hasta aceptar.',
-      risk: 'Un simple aviso informativo ("al navegar aceptas…") no es un consentimiento válido.',
-      fix: fixFor('privacy.banner'),
+      title: m.bannerGenericTitle,
+      detail: m.bannerGenericDetail,
+      risk: m.bannerGenericRisk,
+      fix: fixFor('privacy.banner', locale),
     };
   }
   if (needsConsent) {
@@ -331,20 +331,19 @@ function bannerFinding(cmp: CmpDetection, needsConsent: boolean): Finding {
       ...base,
       id,
       status: 'fail',
-      title: 'Falta el banner de cookies',
-      detail: 'Tu web usa cookies o scripts de analítica o publicidad y no pide consentimiento.',
-      risk: 'La LSSI exige consentimiento previo para estas cookies; las multas pueden llegar a decenas de miles de euros.',
-      fix: fixFor('privacy.banner'),
+      title: m.bannerMissingTitle,
+      detail: m.bannerMissingDetail,
+      risk: m.bannerMissingRisk,
+      fix: fixFor('privacy.banner', locale),
     };
   }
   return {
     ...base,
     id,
     status: 'ok',
-    title: 'No necesitas banner de cookies (por lo que vemos)',
-    detail:
-      'No hemos visto cookies ni scripts que requieran consentimiento. Si añades analítica, vídeos o píxeles de publicidad, necesitarás uno.',
-    risk: 'Sin problemas.',
+    title: m.bannerNotNeededTitle,
+    detail: m.bannerNotNeededDetail,
+    risk: m.noProblems,
     fix: [],
   };
 }
@@ -352,9 +351,10 @@ function bannerFinding(cmp: CmpDetection, needsConsent: boolean): Finding {
 // ─── Páginas legales ─────────────────────────────────────────────────────────
 
 const LEGAL_RE =
-  /aviso[-_ ]?legal|legal[-_ ]?notice|nota[-_ ]?legal|informaci[oó]n[-_ ]?legal|t[eé]rminos[-_ ]?(y|and)[-_ ]?condiciones|condiciones[-_ ]?(de[-_ ]?uso|generales)|impressum|\bterms\b|site[-_ ]?policy/i;
-const PRIVACY_RE = /privacidad|privacy|protecci[oó]n[-_ ]?de[-_ ]?datos|rgpd|gdpr/i;
-const COOKIES_RE = /cookie/i;
+  /aviso[-_ ]?legal|av[ií]s[-_ ]?legal|legal[-_ ]?notice|nota[-_ ]?legal|informaci[oó]n[-_ ]?legal|t[eé]rminos[-_ ]?(y|and)[-_ ]?condiciones|condiciones[-_ ]?(de[-_ ]?uso|generales)|impressum|\bterms\b|site[-_ ]?policy/i;
+const PRIVACY_RE =
+  /privacidad|privadesa|privacitat|privacy|protecci[oó]n?[-_ ]?de[-_ ]?(datos|dades)|rgpd|gdpr/i;
+const COOKIES_RE = /cookie|galeta/i;
 
 export function findLegalLinks($: cheerio.CheerioAPI, pageUrl: string) {
   const found = {
@@ -379,7 +379,13 @@ export function findLegalLinks($: cheerio.CheerioAPI, pageUrl: string) {
   return found;
 }
 
-function legalFindings($: cheerio.CheerioAPI, pageUrl: string, usesCookies: boolean): Finding[] {
+function legalFindings(
+  $: cheerio.CheerioAPI,
+  pageUrl: string,
+  usesCookies: boolean,
+  m: M,
+  locale: Locale,
+): Finding[] {
   const links = findLegalLinks($, pageUrl);
   const make = (
     id: 'privacy.legal_notice' | 'privacy.privacy_policy' | 'privacy.cookie_policy',
@@ -393,51 +399,33 @@ function legalFindings($: cheerio.CheerioAPI, pageUrl: string, usesCookies: bool
           id,
           status: 'ok',
           title: names.ok,
-          detail: `Enlazada desde la página de inicio: ${url}`,
-          risk: 'Sin problemas (revisa que su contenido esté actualizado).',
+          detail: m.legalLinked(url),
+          risk: m.legalOkRisk,
           fix: [],
           evidence: { url },
         }
-      : { ...base, id, title: names.missing, fix: fixFor(id), ...missing };
+      : { ...base, id, title: names.missing, fix: fixFor(id, locale), ...missing };
 
   return [
     make(
       'privacy.legal_notice',
       links.legal,
-      { ok: 'Tienes aviso legal', missing: 'No encontramos el aviso legal' },
-      {
-        status: 'fail',
-        detail: 'No hay un enlace visible a un "Aviso legal" en la página de inicio.',
-        risk: 'La LSSI (art. 10) obliga a identificar al titular de la web: nombre o razón social, NIF, dirección y email.',
-      },
+      { ok: m.noticeOk, missing: m.noticeMissing },
+      { status: 'fail', detail: m.noticeDetail, risk: m.noticeRisk },
     ),
     make(
       'privacy.privacy_policy',
       links.privacy,
-      { ok: 'Tienes política de privacidad', missing: 'No encontramos la política de privacidad' },
-      {
-        status: 'fail',
-        detail: 'No hay un enlace visible a una "Política de privacidad" en la página de inicio.',
-        risk: 'Si tu web recoge cualquier dato (formulario, email, reservas), el RGPD (art. 13) obliga a informar de cómo se tratan.',
-      },
+      { ok: m.privacyOk, missing: m.privacyMissing },
+      { status: 'fail', detail: m.privacyDetail, risk: m.privacyRisk },
     ),
     make(
       'privacy.cookie_policy',
       links.cookies,
-      { ok: 'Tienes política de cookies', missing: 'No encontramos la política de cookies' },
+      { ok: m.cookiePolicyOk, missing: m.cookiePolicyMissing },
       usesCookies
-        ? {
-            status: 'fail',
-            detail:
-              'Tu web usa cookies que requieren consentimiento, pero no enlaza una "Política de cookies".',
-            risk: 'La LSSI (art. 22.2) obliga a informar de forma clara y completa sobre las cookies que se usan.',
-          }
-        : {
-            status: 'info',
-            detail:
-              'No hay enlace a una "Política de cookies". Si solo usas cookies técnicas no es obligatoria, pero es recomendable.',
-            risk: 'Bajo, mientras no añadas cookies de analítica o publicidad.',
-          },
+        ? { status: 'fail', detail: m.cookiePolicyFailDetail, risk: m.cookiePolicyFailRisk }
+        : { status: 'info', detail: m.cookiePolicyInfoDetail, risk: m.cookiePolicyInfoRisk },
     ),
   ];
 }
@@ -445,7 +433,7 @@ function legalFindings($: cheerio.CheerioAPI, pageUrl: string, usesCookies: bool
 // ─── Formularios ─────────────────────────────────────────────────────────────
 
 const FORM_PRIVACY_RE =
-  /pol[ií]tica de privacidad|protecci[oó]n de datos|privacy policy|informaci[oó]n b[aá]sica|responsable del tratamiento|privacidad|rgpd/i;
+  /pol[ií]tica de privacidad|pol[ií]tica de privadesa|protecci[oó] de dades|protecci[oó]n de datos|privacy policy|informaci[oó]n b[aá]sica|responsable del tratamiento|privacidad|rgpd/i;
 const MARKETING_RE =
   /privacidad|comercial|publicidad|newsletter|ofertas|promociones|novedades|bolet[ií]n/i;
 const SEARCH_NAMES = new Set(['s', 'q', 'search', 'query', 'buscar', 'search_query']);
@@ -504,14 +492,13 @@ export function analyzeForms(page: Page): { forms: number; issues: FormIssue[] }
   return { forms, issues };
 }
 
-const PROBLEM_TEXT: Record<FormIssue['problem'], string> = {
-  insecure: 'envía los datos sin cifrar (http)',
-  no_privacy: 'no informa de la protección de datos junto al formulario',
-  prechecked: 'tiene una casilla de consentimiento ya marcada',
-};
-
-function formsFinding(pages: readonly Page[]): Finding {
+function formsFinding(pages: readonly Page[], m: M, locale: Locale): Finding {
   const id = 'privacy.forms';
+  const problemText: Record<FormIssue['problem'], string> = {
+    insecure: m.formInsecure,
+    no_privacy: m.formNoPrivacy,
+    prechecked: m.formPrechecked,
+  };
   const results = pages.map(analyzeForms);
   const total = results.reduce((n, r) => n + r.forms, 0);
   const issues = results.flatMap((r) => r.issues);
@@ -522,9 +509,9 @@ function formsFinding(pages: readonly Page[]): Finding {
       ...base,
       id,
       status: 'info',
-      title: 'No hemos visto formularios',
-      detail: `Hemos revisado ${pages.length} ${pages.length === 1 ? 'página' : 'páginas'} sin encontrar formularios de contacto o registro.`,
-      risk: 'Sin problemas.',
+      title: m.formsNoneTitle,
+      detail: m.formsNoneDetail(pages.length),
+      risk: m.noProblems,
       fix: [],
       evidence,
     };
@@ -534,30 +521,23 @@ function formsFinding(pages: readonly Page[]): Finding {
       ...base,
       id,
       status: 'ok',
-      title:
-        total === 1
-          ? 'El formulario informa sobre la protección de datos'
-          : `Los ${total} formularios informan sobre la protección de datos`,
-      detail: 'Se envían cifrados y enlazan o resumen la información de privacidad.',
-      risk: 'Sin problemas.',
+      title: m.formsOkTitle(total),
+      detail: m.formsOkDetail,
+      risk: m.noProblems,
       fix: [],
       evidence,
     };
   }
   const insecure = issues.some((i) => i.problem === 'insecure');
-  const lines = issues.map((i) => `${i.page}: ${PROBLEM_TEXT[i.problem]}`);
+  const lines = issues.map((i) => `${i.page}: ${problemText[i.problem]}`);
   return {
     ...base,
     id,
     status: insecure ? 'fail' : 'warning',
-    title: insecure
-      ? 'Hay formularios que envían datos sin cifrar'
-      : 'Hay formularios que no cumplen del todo con el RGPD',
+    title: insecure ? m.formsInsecureTitle : m.formsGdprTitle,
     detail: `${[...new Set(lines)].join('; ')}.`,
-    risk: insecure
-      ? 'Los datos que escriben tus clientes pueden interceptarse.'
-      : 'El RGPD exige informar en el propio formulario (primera capa) y que el consentimiento sea una casilla sin marcar.',
-    fix: fixFor('privacy.forms'),
+    risk: insecure ? m.formsInsecureRisk : m.formsGdprRisk,
+    fix: fixFor('privacy.forms', locale),
     evidence,
   };
 }

@@ -1,5 +1,7 @@
 import type { MxRecord } from 'node:dns';
 import { fixFor } from '../data/remediation';
+import type { Locale } from '../i18n';
+import { EMAIL_MSG } from './emailDns.messages';
 import { suggestDmarc, suggestSpf } from '../dnsRecords';
 import { errorFinding } from '../findings';
 import { createDnsClient, mxRecords, txtRecords, type DnsClient } from '../net/dnsClient';
@@ -38,18 +40,19 @@ export const emailDomainOf = (domain: string) => domain.replace(/^www\./, '');
 export async function checkEmailDns(
   domain: string,
   dns: DnsClient = createDnsClient(),
+  locale: Locale = 'es',
 ): Promise<Finding[]> {
   const name = emailDomainOf(domain);
   const mx = mxRecords(dns, name);
   const results = await Promise.allSettled([
-    mx.then((records) => mxFinding(name, records)),
-    checkSpf(name, dns, mx),
-    checkDmarc(name, dns, mx),
-    checkDkim(name, dns),
+    mx.then((records) => mxFinding(name, records, locale)),
+    checkSpf(name, dns, mx, locale),
+    checkDmarc(name, dns, mx, locale),
+    checkDkim(name, dns, locale),
   ]);
   const ids = ['email.mx', 'email.spf', 'email.dmarc', 'email.dkim'];
   return results.map((r, i) =>
-    r.status === 'fulfilled' ? r.value : errorFinding(ids[i]!, 'email', r.reason),
+    r.status === 'fulfilled' ? r.value : errorFinding(ids[i]!, 'email', r.reason, locale),
   );
 }
 
@@ -80,15 +83,16 @@ export function mailProvider(records: MxRecord[]): string | null {
 const isNullMx = (records: MxRecord[]) =>
   records.length === 1 && (records[0]!.exchange === '' || records[0]!.exchange === '.');
 
-function mxFinding(domain: string, records: MxRecord[]): Finding {
+function mxFinding(domain: string, records: MxRecord[], locale: Locale): Finding {
+  const m = EMAIL_MSG[locale];
   if (records.length === 0 || isNullMx(records)) {
     return {
       ...base,
       id: 'email.mx',
       status: 'info',
-      title: 'Tu dominio no recibe correo',
-      detail: `${domain} no tiene servidores de correo (MX). Si usas un email de Gmail u Outlook para el negocio, es normal.`,
-      risk: 'Aunque no lo uses para correo, conviene publicar SPF y DMARC para que nadie lo suplante.',
+      title: m.mxNoneTitle,
+      detail: m.mxNoneDetail(domain),
+      risk: m.mxNoneRisk,
       fix: [],
       evidence: { mx: records.map((r) => r.exchange) },
     };
@@ -98,9 +102,9 @@ function mxFinding(domain: string, records: MxRecord[]): Finding {
     ...base,
     id: 'email.mx',
     status: 'ok',
-    title: provider ? `Recibes el correo en ${provider}` : 'Tu dominio tiene correo configurado',
-    detail: `Servidores de correo: ${records.map((r) => r.exchange).join(', ')}.`,
-    risk: 'Sin problemas.',
+    title: provider ? m.mxProviderTitle(provider) : m.mxGenericTitle,
+    detail: m.mxDetail(records.map((r) => r.exchange).join(', ')),
+    risk: m.noProblems,
     fix: [],
     evidence: { mx: records.map((r) => `${r.priority} ${r.exchange}`), provider },
   };
@@ -172,7 +176,13 @@ export async function countSpfLookups(
 
 const realMx = (records: MxRecord[]) => (isNullMx(records) ? [] : records);
 
-async function checkSpf(domain: string, dns: DnsClient, mx: Promise<MxRecord[]>): Promise<Finding> {
+async function checkSpf(
+  domain: string,
+  dns: DnsClient,
+  mx: Promise<MxRecord[]>,
+  locale: Locale,
+): Promise<Finding> {
+  const m = EMAIL_MSG[locale];
   const records = (await txtRecords(dns, domain)).filter(isSpf);
   const mxList = realMx(await mx.catch(() => []));
   const noMail = mxList.length === 0;
@@ -183,6 +193,7 @@ async function checkSpf(domain: string, dns: DnsClient, mx: Promise<MxRecord[]>)
       provider: mailProvider(mxList),
       mxHosts: mxList.map((m) => m.exchange),
       noMail,
+      locale,
     });
     return r ? { records: [r] } : {};
   };
@@ -191,12 +202,10 @@ async function checkSpf(domain: string, dns: DnsClient, mx: Promise<MxRecord[]>)
       ...base,
       id: 'email.spf',
       status: 'fail',
-      title: 'Falta el registro SPF',
-      detail: noMail
-        ? `${domain} no dice qué servidores pueden enviar correo en su nombre. Si no envías correo con él, publica "v=spf1 -all".`
-        : `${domain} no dice qué servidores pueden enviar correo en su nombre.`,
-      risk: 'Cualquiera puede enviar emails haciéndose pasar por tu negocio, y tus correos legítimos acaban más en spam.',
-      fix: fixFor('email.spf'),
+      title: m.spfMissingTitle,
+      detail: noMail ? m.spfMissingNoMail(domain) : m.spfMissingDetail(domain),
+      risk: m.spfMissingRisk,
+      fix: fixFor('email.spf', locale),
       ...suggest([]),
     };
   }
@@ -205,10 +214,10 @@ async function checkSpf(domain: string, dns: DnsClient, mx: Promise<MxRecord[]>)
       ...base,
       id: 'email.spf',
       status: 'fail',
-      title: 'Hay varios registros SPF y eso lo invalida',
-      detail: `Solo puede haber uno; ahora hay ${records.length}. Los servidores de correo los ignoran todos.`,
-      risk: 'Es como no tener SPF: tu dominio se puede suplantar.',
-      fix: fixFor('email.spf_multiple'),
+      title: m.spfMultiTitle,
+      detail: m.spfMultiDetail(records.length),
+      risk: m.spfMultiRisk,
+      fix: fixFor('email.spf_multiple', locale),
       evidence: { records },
       ...suggest(records),
     };
@@ -229,10 +238,10 @@ async function checkSpf(domain: string, dns: DnsClient, mx: Promise<MxRecord[]>)
       ...base,
       id: 'email.spf',
       status: 'fail',
-      title: 'El SPF hace demasiadas consultas y deja de funcionar',
-      detail: `Necesita ${lookups} consultas DNS y el máximo es ${SPF_MAX_LOOKUPS}. Los servidores de correo lo dan por erróneo.`,
-      risk: 'Tus emails pueden ir a spam y el dominio queda sin protección real.',
-      fix: fixFor('email.spf_lookups'),
+      title: m.spfLookupsTitle,
+      detail: m.spfLookupsDetail(lookups, SPF_MAX_LOOKUPS),
+      risk: m.spfLookupsRisk,
+      fix: fixFor('email.spf_lookups', locale),
       evidence,
     };
   }
@@ -241,13 +250,10 @@ async function checkSpf(domain: string, dns: DnsClient, mx: Promise<MxRecord[]>)
       ...base,
       id: 'email.spf',
       status: 'fail',
-      title: `El SPF termina en "${info.all}all" y no protege nada`,
-      detail:
-        info.all === '+'
-          ? 'Con "+all" autorizas a cualquier servidor del mundo a enviar correo como tú.'
-          : 'Con "?all" no indicas qué hacer con los correos falsos.',
-      risk: 'Tu dominio se puede suplantar igual que si no tuvieras SPF.',
-      fix: fixFor('email.spf'),
+      title: m.spfOpenTitle(info.all),
+      detail: info.all === '+' ? m.spfPlusDetail : m.spfQuestionDetail,
+      risk: m.spfOpenRisk,
+      fix: fixFor('email.spf', locale),
       evidence,
       ...suggest([record]),
     };
@@ -257,25 +263,25 @@ async function checkSpf(domain: string, dns: DnsClient, mx: Promise<MxRecord[]>)
       ...base,
       id: 'email.spf',
       status: 'warning',
-      title: 'El SPF no termina en "-all" ni "~all"',
-      detail: 'Falta la regla final que dice qué hacer con los servidores no autorizados.',
-      risk: 'La protección contra suplantación es débil.',
-      fix: fixFor('email.spf'),
+      title: m.spfNoAllTitle,
+      detail: m.spfNoAllDetail,
+      risk: m.spfNoAllRisk,
+      fix: fixFor('email.spf', locale),
       evidence,
       ...suggest([record]),
     };
   }
-  const notes: string[] = [`Usa ${lookups} de ${SPF_MAX_LOOKUPS} consultas DNS.`];
-  if (info.usesPtr) notes.push('Incluye "ptr", un mecanismo obsoleto que conviene quitar.');
+  const notes: string[] = [m.spfLookupsNote(lookups, SPF_MAX_LOOKUPS)];
+  if (info.usesPtr) notes.push(m.spfPtrNote);
   if (info.all === '~') {
     return {
       ...base,
       id: 'email.spf',
       status: 'info',
-      title: 'SPF configurado en modo flexible ("~all")',
-      detail: `Los correos no autorizados se marcan como sospechosos, pero no se rechazan. ${notes.join(' ')}`,
-      risk: 'Protege bien si además tienes DMARC en "quarantine" o "reject". Sin DMARC, mejor "-all".',
-      fix: fixFor('email.spf_softfail'),
+      title: m.spfSoftTitle,
+      detail: m.spfSoftDetail(notes.join(' ')),
+      risk: m.spfSoftRisk,
+      fix: fixFor('email.spf_softfail', locale),
       evidence,
     };
   }
@@ -283,12 +289,10 @@ async function checkSpf(domain: string, dns: DnsClient, mx: Promise<MxRecord[]>)
     ...base,
     id: 'email.spf',
     status: info.usesPtr ? 'warning' : 'ok',
-    title: 'SPF configurado correctamente',
-    detail: `Solo los servidores autorizados pueden enviar correo como ${domain}. ${notes.join(' ')}`,
-    risk: info.usesPtr
-      ? 'Funciona, pero "ptr" ralentiza y algunos servidores lo ignoran.'
-      : 'Sin problemas.',
-    fix: info.usesPtr ? fixFor('email.spf') : [],
+    title: m.spfOkTitle,
+    detail: m.spfOkDetail(domain, notes.join(' ')),
+    risk: info.usesPtr ? m.spfPtrRisk : m.noProblems,
+    fix: info.usesPtr ? fixFor('email.spf', locale) : [],
     evidence,
   };
 }
@@ -311,7 +315,9 @@ async function checkDmarc(
   domain: string,
   dns: DnsClient,
   mx: Promise<MxRecord[]> = Promise.resolve([]),
+  locale: Locale = 'es',
 ): Promise<Finding> {
+  const m = EMAIL_MSG[locale];
   let records = await dmarcRecords(dns, domain);
   // RFC 7489 §6.6.3: un subdominio sin registro propio hereda el del dominio
   // principal, con su política para subdominios (sp=) si la tiene.
@@ -321,17 +327,17 @@ async function checkDmarc(
   const noMail = realMx(await mx.catch(() => [])).length === 0;
   // Los registros se proponen donde hay que ponerlos: en el dominio principal si se hereda.
   const plan = (current: string | null) => ({
-    records: suggestDmarc({ domain: inherited ? org : domain, current, noMail }),
+    records: suggestDmarc({ domain: inherited ? org : domain, current, noMail, locale }),
   });
   if (records.length === 0) {
     return {
       ...base,
       id: 'email.dmarc',
       status: 'fail',
-      title: 'Falta la política DMARC',
-      detail: `${domain} no indica a Gmail, Outlook y compañía qué hacer con los correos que se hacen pasar por ti.`,
-      risk: 'Los emails falsos en tu nombre (facturas, cambios de cuenta bancaria) llegan a tus clientes. Gmail y Yahoo ya exigen DMARC.',
-      fix: fixFor('email.dmarc'),
+      title: m.dmarcMissingTitle,
+      detail: m.dmarcMissingDetail(domain),
+      risk: m.dmarcMissingRisk,
+      fix: fixFor('email.dmarc', locale),
       ...plan(null),
     };
   }
@@ -340,10 +346,10 @@ async function checkDmarc(
       ...base,
       id: 'email.dmarc',
       status: 'fail',
-      title: 'Hay varios registros DMARC y eso lo invalida',
-      detail: `Solo puede haber uno en _dmarc.${inherited ? org : domain}; ahora hay ${records.length}.`,
-      risk: 'Los servidores de correo ignoran la política: es como no tenerla.',
-      fix: fixFor('email.dmarc'),
+      title: m.dmarcMultiTitle,
+      detail: m.dmarcMultiDetail(inherited ? org : domain, records.length),
+      risk: m.dmarcMultiRisk,
+      fix: fixFor('email.dmarc', locale),
       evidence: { records },
       ...plan(null),
     };
@@ -351,11 +357,9 @@ async function checkDmarc(
   const record = records[0]!;
   const tags = parseDmarc(record);
   const policy = ((inherited ? (tags.sp ?? tags.p) : tags.p) ?? '').toLowerCase();
-  const from = inherited ? ` (heredada de ${org})` : '';
+  const from = inherited ? m.dmarcInherited(org) : '';
   const pct = tags.pct ? Number(tags.pct) : 100;
-  const reports = tags.rua
-    ? 'Recibes informes en ' + tags.rua.replace(/mailto:/gi, '') + '.'
-    : 'No pides informes (rua): no sabrás si alguien intenta suplantarte.';
+  const reports = tags.rua ? m.dmarcReports(tags.rua.replace(/mailto:/gi, '')) : m.dmarcNoReports;
   const evidence = {
     record,
     policy,
@@ -370,16 +374,10 @@ async function checkDmarc(
       ...base,
       id: 'email.dmarc',
       status: partial ? 'warning' : 'ok',
-      title: partial
-        ? `DMARC en "${policy}"${from}, pero solo para el ${pct} % de los correos`
-        : `DMARC activo en modo "${policy}"${from}`,
-      detail: `${
-        policy === 'reject'
-          ? 'Los correos falsos en tu nombre se rechazan.'
-          : 'Los correos falsos en tu nombre van a la carpeta de spam.'
-      } ${reports}`,
-      risk: partial ? 'El resto de correos falsos sigue pasando.' : 'Sin problemas.',
-      fix: partial ? fixFor('email.dmarc_none') : [],
+      title: partial ? m.dmarcPartialTitle(policy, from, pct) : m.dmarcActiveTitle(policy, from),
+      detail: `${policy === 'reject' ? m.dmarcRejectDetail : m.dmarcQuarantineDetail} ${reports}`,
+      risk: partial ? m.dmarcPartialRisk : m.noProblems,
+      fix: partial ? fixFor('email.dmarc_none', locale) : [],
       evidence,
     };
   }
@@ -388,10 +386,10 @@ async function checkDmarc(
       ...base,
       id: 'email.dmarc',
       status: 'warning',
-      title: `DMARC solo observa ("${inherited && tags.sp ? 'sp' : 'p'}=none")${from} y no bloquea nada`,
-      detail: `La política está en modo de prueba: los correos falsos siguen llegando. ${reports}`,
-      risk: 'Tu dominio se sigue pudiendo suplantar.',
-      fix: fixFor('email.dmarc_none'),
+      title: m.dmarcNoneTitle(inherited && tags.sp ? 'sp' : 'p', from),
+      detail: m.dmarcNoneDetail(reports),
+      risk: m.dmarcNoneRisk,
+      fix: fixFor('email.dmarc_none', locale),
       evidence,
       ...plan(record),
     };
@@ -400,10 +398,10 @@ async function checkDmarc(
     ...base,
     id: 'email.dmarc',
     status: 'fail',
-    title: 'El registro DMARC no es válido',
-    detail: `Falta la política "p=" o tiene un valor desconocido ("${tags.p ?? ''}").`,
-    risk: 'Los servidores de correo lo ignoran.',
-    fix: fixFor('email.dmarc'),
+    title: m.dmarcInvalidTitle,
+    detail: m.dmarcInvalidDetail(tags.p ?? ''),
+    risk: m.dmarcInvalidRisk,
+    fix: fixFor('email.dmarc', locale),
     evidence,
     ...plan(null),
   };
@@ -411,7 +409,8 @@ async function checkDmarc(
 
 // ─── DKIM ────────────────────────────────────────────────────────────────────
 
-async function checkDkim(domain: string, dns: DnsClient): Promise<Finding> {
+async function checkDkim(domain: string, dns: DnsClient, locale: Locale): Promise<Finding> {
+  const m = EMAIL_MSG[locale];
   const results = await Promise.allSettled(
     DKIM_SELECTORS.map(async (selector) => {
       const records = await txtRecords(dns, `${selector}._domainkey.${domain}`);
@@ -430,9 +429,9 @@ async function checkDkim(domain: string, dns: DnsClient): Promise<Finding> {
       ...base,
       id: 'email.dkim',
       status: 'ok',
-      title: 'Tus correos van firmados (DKIM)',
-      detail: `Hemos encontrado firma DKIM con el selector ${found.map((s) => `"${s}"`).join(', ')}.`,
-      risk: 'Sin problemas: los destinatarios pueden comprobar que el correo es tuyo y no se ha modificado.',
+      title: m.dkimOkTitle,
+      detail: m.dkimOkDetail(found.map((s) => `"${s}"`).join(', ')),
+      risk: m.dkimOkRisk,
       fix: [],
       evidence: { selectors: found },
     };
@@ -441,10 +440,10 @@ async function checkDkim(domain: string, dns: DnsClient): Promise<Finding> {
     ...base,
     id: 'email.dkim',
     status: 'info',
-    title: 'No hemos encontrado firma DKIM',
-    detail: `Hemos probado los selectores más comunes (${DKIM_SELECTORS.join(', ')}) sin éxito. Puede que la tengas con otro nombre: compruébalo en el panel de tu proveedor de correo.`,
-    risk: 'Sin DKIM, tus correos tienen más probabilidades de ir a spam y DMARC protege menos.',
-    fix: fixFor('email.dkim'),
+    title: m.dkimMissingTitle,
+    detail: m.dkimMissingDetail(DKIM_SELECTORS.join(', ')),
+    risk: m.dkimMissingRisk,
+    fix: fixFor('email.dkim', locale),
     evidence: { tried: [...DKIM_SELECTORS] },
   };
 }

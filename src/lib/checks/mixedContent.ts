@@ -1,5 +1,6 @@
 import * as cheerio from 'cheerio';
 import { fixFor } from '../data/remediation';
+import { messages, type Locale } from '../i18n';
 import type { SafeResponse } from '../net/safeFetch';
 import type { Finding } from '../types';
 
@@ -84,11 +85,72 @@ export function scanMixedContent(pages: readonly Page[]): MixedContentScan {
   return { active: [...active], passive: [...passive], pages: count, upgraded };
 }
 
-const list = (urls: string[], max = 3) =>
-  urls.slice(0, max).join(', ') + (urls.length > max ? ` y ${urls.length - max} más` : '');
+export const MSG = messages({
+  es: {
+    more: (n: number) => ` y ${n} más`,
+    activeTitle: 'Tu web carga scripts o estilos sin cifrar y el navegador los bloquea',
+    activeDetail: (list: string) =>
+      `Estas páginas seguras piden recursos por http://: ${list}. Chrome, Safari y Firefox los bloquean, así que parte de la web puede no funcionar o verse rota.`,
+    activeRisk:
+      'Además de romper la web, un script sin cifrar podría ser modificado por un tercero en una red wifi pública.',
+    passiveTitle: 'Tu web carga imágenes o vídeos sin cifrar',
+    passiveDetail: (list: string) =>
+      `Recursos por http:// en páginas seguras: ${list}. Algunos navegadores quitan el candado o no los muestran.`,
+    passiveRisk:
+      'Los visitantes pueden ver la web como "no del todo segura", y esos archivos se pueden manipular por el camino.',
+    okTitle: 'Todo el contenido se carga de forma segura',
+    okUpgraded: (n: number) =>
+      `Hemos revisado ${n} ${n === 1 ? 'página' : 'páginas'}; la web pide al navegador que use siempre https ("upgrade-insecure-requests").`,
+    okDetail: (n: number) =>
+      `Hemos revisado ${n} ${n === 1 ? 'página' : 'páginas'} y no cargan nada por http://.`,
+    noProblems: 'Sin problemas.',
+  },
+  ca: {
+    more: (n: number) => ` i ${n} més`,
+    activeTitle: 'El teu web carrega scripts o estils sense xifrar i el navegador els bloqueja',
+    activeDetail: (list: string) =>
+      `Aquestes pàgines segures demanen recursos per http://: ${list}. Chrome, Safari i Firefox els bloquegen, així que una part del web pot no funcionar o veure's trencada.`,
+    activeRisk:
+      'A més de trencar el web, un script sense xifrar el podria modificar un tercer en una xarxa wifi pública.',
+    passiveTitle: 'El teu web carrega imatges o vídeos sense xifrar',
+    passiveDetail: (list: string) =>
+      `Recursos per http:// en pàgines segures: ${list}. Alguns navegadors treuen el cadenat o no els mostren.`,
+    passiveRisk:
+      'Els visitants poden veure el web com a "no del tot segur", i aquests fitxers es poden manipular pel camí.',
+    okTitle: 'Tot el contingut es carrega de manera segura',
+    okUpgraded: (n: number) =>
+      `Hem revisat ${n} ${n === 1 ? 'pàgina' : 'pàgines'}; el web demana al navegador que faci servir sempre https ("upgrade-insecure-requests").`,
+    okDetail: (n: number) =>
+      `Hem revisat ${n} ${n === 1 ? 'pàgina' : 'pàgines'} i no carreguen res per http://.`,
+    noProblems: 'Cap problema.',
+  },
+  en: {
+    more: (n: number) => ` and ${n} more`,
+    activeTitle: 'Your website loads unencrypted scripts or styles and the browser blocks them',
+    activeDetail: (list: string) =>
+      `These secure pages request resources over http://: ${list}. Chrome, Safari and Firefox block them, so parts of the website may not work or look broken.`,
+    activeRisk:
+      'Besides breaking the website, an unencrypted script could be altered by a third party on public wifi.',
+    passiveTitle: 'Your website loads unencrypted images or videos',
+    passiveDetail: (list: string) =>
+      `Resources over http:// on secure pages: ${list}. Some browsers remove the padlock or do not show them.`,
+    passiveRisk:
+      'Visitors may see the website as "not fully secure", and those files can be tampered with on the way.',
+    okTitle: 'All content is loaded securely',
+    okUpgraded: (n: number) =>
+      `We checked ${n} ${n === 1 ? 'page' : 'pages'}; the website tells the browser to always use https ("upgrade-insecure-requests").`,
+    okDetail: (n: number) =>
+      `We checked ${n} ${n === 1 ? 'page' : 'pages'} and they load nothing over http://.`,
+    noProblems: 'No problems.',
+  },
+});
+
+const list = (urls: string[], more: (n: number) => string, max = 3) =>
+  urls.slice(0, max).join(', ') + (urls.length > max ? more(urls.length - max) : '');
 
 /** `null` si no hay páginas https que revisar (eso ya lo cubre `ssl.no_https`). */
-export function mixedContentFinding(pages: readonly Page[]): Finding | null {
+export function mixedContentFinding(pages: readonly Page[], locale: Locale = 'es'): Finding | null {
+  const m = MSG[locale];
   const scan = scanMixedContent(pages);
   if (scan.pages === 0) return null;
   const base = {
@@ -104,30 +166,28 @@ export function mixedContentFinding(pages: readonly Page[]): Finding | null {
     return {
       ...base,
       status: 'fail',
-      title: 'Tu web carga scripts o estilos sin cifrar y el navegador los bloquea',
-      detail: `Estas páginas seguras piden recursos por http://: ${list(scan.active)}. Chrome, Safari y Firefox los bloquean, así que parte de la web puede no funcionar o verse rota.`,
-      risk: 'Además de romper la web, un script sin cifrar podría ser modificado por un tercero en una red wifi pública.',
-      fix: fixFor('ssl.mixed_content'),
+      title: m.activeTitle,
+      detail: m.activeDetail(list(scan.active, m.more)),
+      risk: m.activeRisk,
+      fix: fixFor('ssl.mixed_content', locale),
     };
   }
   if (scan.passive.length > 0) {
     return {
       ...base,
       status: 'warning',
-      title: 'Tu web carga imágenes o vídeos sin cifrar',
-      detail: `Recursos por http:// en páginas seguras: ${list(scan.passive)}. Algunos navegadores quitan el candado o no los muestran.`,
-      risk: 'Los visitantes pueden ver la web como "no del todo segura", y esos archivos se pueden manipular por el camino.',
-      fix: fixFor('ssl.mixed_content'),
+      title: m.passiveTitle,
+      detail: m.passiveDetail(list(scan.passive, m.more)),
+      risk: m.passiveRisk,
+      fix: fixFor('ssl.mixed_content', locale),
     };
   }
   return {
     ...base,
     status: 'ok',
-    title: 'Todo el contenido se carga de forma segura',
-    detail: scan.upgraded
-      ? `Hemos revisado ${scan.pages} ${scan.pages === 1 ? 'página' : 'páginas'}; la web pide al navegador que use siempre https ("upgrade-insecure-requests").`
-      : `Hemos revisado ${scan.pages} ${scan.pages === 1 ? 'página' : 'páginas'} y no cargan nada por http://.`,
-    risk: 'Sin problemas.',
+    title: m.okTitle,
+    detail: scan.upgraded ? m.okUpgraded(scan.pages) : m.okDetail(scan.pages),
+    risk: m.noProblems,
     fix: [],
   };
 }
