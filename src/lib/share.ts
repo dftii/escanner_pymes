@@ -1,3 +1,4 @@
+import type { Locale } from './i18n';
 import type { ReportData } from './report';
 import { parseReport } from './reportSchema';
 
@@ -77,7 +78,8 @@ export async function decodeReport(encoded: string): Promise<ReportData | null> 
   }
 }
 
-export const shareUrl = (origin: string, encoded: string) => `${origin}/#${SHARE_PARAM}=${encoded}`;
+export const shareUrl = (origin: string, encoded: string, locale: Locale = 'es') =>
+  `${origin}${locale === 'es' ? '' : `/${locale}`}/#${SHARE_PARAM}=${encoded}`;
 
 /** El informe codificado de un `location.hash`, si lo hay. */
 export function sharedFromHash(hash: string): string | null {

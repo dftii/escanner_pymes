@@ -6,14 +6,14 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { createElement } from 'react';
 import { describe, expect, it } from 'vitest';
 import { checkPrivacy } from '@/lib/checks/privacy';
-import Home from '@/app/page';
+import { HomePage } from '@/components/HomePage';
 
 describe('la propia web pasa su check de cookies y RGPD', () => {
   it('home: sin cookies ni seguimiento, con páginas legales y formulario que informa', () => {
     // El pie con los enlaces legales está en el layout; se añade aquí igual que en la web.
     const footer =
       '<a href="/aviso-legal">Aviso legal</a><a href="/privacidad">Privacidad</a><a href="/cookies">Cookies</a>';
-    const html = renderToStaticMarkup(createElement(Home)) + footer;
+    const html = renderToStaticMarkup(createElement(HomePage, { locale: 'es' })) + footer;
     const findings = checkPrivacy({
       url: 'https://escaner.example/',
       body: html,

@@ -1,4 +1,9 @@
-import { GRADE_LABELS, type Grade } from '@/lib/scoring';
+'use client';
+
+import { GRADE_NAMES } from '@/lib/labels';
+import type { Grade } from '@/lib/scoring';
+import type { UiText } from '@/lib/ui';
+import { useLocale, useUi } from './LocaleProvider';
 import type { FindingStatus } from '@/lib/types';
 
 /** Colores con contraste AA sobre texto blanco. */
@@ -23,6 +28,8 @@ export function GradeBadge({
   /** Circular (dentro del anillo de puntuación). */
   round?: boolean;
 }) {
+  const t = useUi();
+  const locale = useLocale();
   const box = `${size === 'xl' ? 'size-24 text-6xl' : 'size-12 text-2xl'} ${
     round ? 'rounded-full' : size === 'xl' ? 'rounded-3xl' : 'rounded-xl'
   }`;
@@ -30,8 +37,8 @@ export function GradeBadge({
     return (
       <span
         className={`${box} inline-flex shrink-0 items-center justify-center bg-slate-500 font-bold text-white`}
-        aria-label="Sin datos suficientes para dar una nota"
-        title="Sin datos"
+        aria-label={t.noGradeAria}
+        title={t.noGradeTitle}
       >
         –
       </span>
@@ -40,7 +47,7 @@ export function GradeBadge({
   return (
     <span
       className={`${box} ${GRADE_STYLES[grade]} inline-flex shrink-0 items-center justify-center font-bold text-white print:border print:border-black print:text-black`}
-      aria-label={`Nota ${grade}, ${GRADE_LABELS[grade]}, ${score} sobre 100`}
+      aria-label={t.gradeAria(grade, GRADE_NAMES[locale][grade], score ?? 0)}
       title={`${score}/100`}
     >
       {grade}
@@ -48,42 +55,43 @@ export function GradeBadge({
   );
 }
 
-const STATUS: Record<FindingStatus, { label: string; icon: string; className: string }> = {
+const STATUS: Record<FindingStatus, { label: keyof UiText; icon: string; className: string }> = {
   fail: {
-    label: 'Fallo',
+    label: 'statusFail',
     icon: '✗',
     className: 'bg-red-100 text-red-900 dark:bg-red-950 dark:text-red-100',
   },
   warning: {
-    label: 'Aviso',
+    label: 'statusWarning',
     icon: '!',
     className: 'bg-amber-100 text-amber-950 dark:bg-amber-950 dark:text-amber-100',
   },
   error: {
-    label: 'Sin datos',
+    label: 'statusError',
     icon: '?',
     className: 'bg-slate-200 text-slate-900 dark:bg-slate-800 dark:text-slate-100',
   },
   info: {
-    label: 'Info',
+    label: 'statusInfo',
     icon: 'i',
     className: 'bg-sky-100 text-sky-950 dark:bg-sky-950 dark:text-sky-100',
   },
   ok: {
-    label: 'Correcto',
+    label: 'statusOk',
     icon: '✓',
     className: 'bg-emerald-100 text-emerald-950 dark:bg-emerald-950 dark:text-emerald-100',
   },
 };
 
 export function StatusBadge({ status }: { status: FindingStatus }) {
+  const t = useUi();
   const s = STATUS[status];
   return (
     <span
       className={`${s.className} inline-flex w-24 shrink-0 items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold print:border print:border-black`}
     >
       <span aria-hidden="true">{s.icon}</span>
-      {s.label}
+      {t[s.label] as string}
     </span>
   );
 }

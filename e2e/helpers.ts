@@ -57,11 +57,12 @@ export async function mockScan(
   page: Page,
   byDomain: (domain: string, call: number) => ReportData | { status: number; message: string },
 ) {
-  const calls: Array<{ domain: string; consent: boolean }> = [];
+  const calls: Array<{ domain: string; consent: boolean; locale?: string }> = [];
   await page.route('**/api/scan', async (route) => {
     const body = JSON.parse(route.request().postData() ?? '{}') as {
       domain: string;
       consent: boolean;
+      locale?: string;
     };
     calls.push(body);
     const result = byDomain(body.domain, calls.length);
@@ -90,12 +91,12 @@ export async function mockScan(
   return calls;
 }
 
-/** Rellena el formulario principal y lanza el análisis. */
+/** Rellena el formulario principal y lanza el análisis (en cualquier idioma). */
 export async function scan(page: Page, domain: string) {
   const form = page.locator('form').first();
-  await form.getByLabel('Dominio de tu web').fill(domain);
+  await form.locator('input[name="domain"]').fill(domain);
   await form.getByRole('checkbox').check();
-  await form.getByRole('button', { name: 'Analizar' }).click();
+  await form.locator('button[type="submit"]').click();
   await page.locator('#informe-titulo').waitFor();
 }
 

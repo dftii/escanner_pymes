@@ -4,6 +4,7 @@ import { useId, useState, type FormEvent } from 'react';
 import { compareReports, type ReportData } from '@/lib/report';
 import { requestScan } from '@/lib/scanClient';
 import { GradeBadge } from './Badges';
+import { useLocale, useUi } from './LocaleProvider';
 
 /** Tabla de notas de dos informes, lado a lado. */
 export function ComparisonTable({
@@ -19,7 +20,8 @@ export function ComparisonTable({
   labelB: string;
   caption: string;
 }) {
-  const rows = compareReports(a, b);
+  const t = useUi();
+  const rows = compareReports(a, b, useLocale());
   return (
     <table className="fade-in w-full border-collapse text-left">
       <caption className="mb-2 text-left text-sm text-slate-600 dark:text-slate-400">
@@ -28,7 +30,7 @@ export function ComparisonTable({
       <thead>
         <tr className="border-b border-slate-200 dark:border-slate-800">
           <th scope="col" className="py-2 pr-2 font-semibold">
-            Categoría
+            {t.category}
           </th>
           <th scope="col" className="px-2 py-2 font-semibold break-all">
             {labelA}
@@ -50,7 +52,7 @@ export function ComparisonTable({
                   <GradeBadge grade={r[side].grade} score={r[side].score} />
                   {r.better === side && (
                     <span className="pop-in inline-block text-sm font-semibold text-emerald-800 dark:text-emerald-300">
-                      Mejor
+                      {t.better}
                     </span>
                   )}
                 </span>
@@ -71,6 +73,8 @@ type CompareState =
 
 /** Analiza otro dominio (p. ej. un competidor) y compara las notas. */
 export function CompetitorCompare({ report }: { report: ReportData }) {
+  const t = useUi();
+  const locale = useLocale();
   const [state, setState] = useState<CompareState>({ phase: 'idle' });
   const domainId = useId();
   const consentId = useId();
@@ -82,12 +86,18 @@ export function CompetitorCompare({ report }: { report: ReportData }) {
     const domain = String(data.get('domain') ?? '').trim();
     setState({ phase: 'scanning', domain });
     try {
-      const other = await requestScan(domain, data.get('consent') === 'on');
+      const other = await requestScan(
+        domain,
+        data.get('consent') === 'on',
+        undefined,
+        fetch,
+        locale,
+      );
       setState({ phase: 'done', other });
     } catch (error) {
       setState({
         phase: 'error',
-        message: error instanceof Error ? error.message : 'No hemos podido analizar el dominio.',
+        message: error instanceof Error ? error.message : t.errorGeneric,
       });
     }
   }
@@ -99,12 +109,11 @@ export function CompetitorCompare({ report }: { report: ReportData }) {
       className="flex flex-col gap-4 rounded-2xl border border-slate-200 p-6 dark:border-slate-800 print:hidden"
     >
       <h3 id={titleId} className="text-xl font-semibold">
-        Compárate con otra web
+        {t.compareTitle}
       </h3>
       <form onSubmit={onSubmit} className="flex flex-col gap-3">
         <label htmlFor={domainId} className="text-sm">
-          Escribe otro dominio, por ejemplo el de un competidor o una web de referencia de tu
-          sector.
+          {t.compareHelp}
         </label>
         <div className="flex flex-col gap-3 sm:flex-row">
           <input
@@ -116,7 +125,7 @@ export function CompetitorCompare({ report }: { report: ReportData }) {
             spellCheck={false}
             required
             maxLength={253}
-            placeholder="otranegocio.es"
+            placeholder={t.comparePlaceholder}
             disabled={scanning}
             className="flex-1 rounded-lg border border-slate-400 bg-white px-4 py-2 dark:border-slate-600 dark:bg-slate-950"
           />
@@ -125,7 +134,7 @@ export function CompetitorCompare({ report }: { report: ReportData }) {
             disabled={scanning}
             className="press rounded-lg border border-slate-300 px-4 py-2 font-semibold hover:bg-slate-100 disabled:cursor-wait disabled:opacity-70 dark:border-slate-700 dark:hover:bg-slate-800"
           >
-            {scanning ? 'Analizando…' : 'Comparar'}
+            {scanning ? t.analyzing : t.compare}
           </button>
         </div>
         <div className="flex items-start gap-3">
@@ -138,13 +147,12 @@ export function CompetitorCompare({ report }: { report: ReportData }) {
             className="mt-1 size-5 shrink-0"
           />
           <label htmlFor={consentId} className="text-sm text-slate-700 dark:text-slate-300">
-            Confirmo que tengo permiso para analizar este dominio. Solo se hacen comprobaciones
-            pasivas, las mismas que haría un navegador, y cuenta para el límite de análisis.
+            {t.compareConsent}
           </label>
         </div>
       </form>
       <div aria-live="polite" aria-busy={scanning}>
-        {scanning && <p>Analizando {state.domain}…</p>}
+        {scanning && <p>{t.analyzingDomain(state.domain)}</p>}
         {state.phase === 'error' && (
           <p role="alert" className="text-red-800 dark:text-red-300">
             {state.message}
@@ -156,7 +164,7 @@ export function CompetitorCompare({ report }: { report: ReportData }) {
             b={state.other}
             labelA={report.domain}
             labelB={state.other.domain}
-            caption={`Notas de ${report.domain} frente a ${state.other.domain}`}
+            caption={t.compareCaption(report.domain, state.other.domain)}
           />
         )}
       </div>

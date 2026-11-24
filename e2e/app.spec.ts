@@ -250,3 +250,74 @@ test.describe('SEO', () => {
     await expect(page).toHaveTitle('Glosario · Escáner Pymes');
   });
 });
+
+test.describe('idiomas', () => {
+  test('selector de idioma, html lang y alternativas hreflang', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('html')).toHaveAttribute('lang', 'es-ES');
+    expect(
+      await page.locator('link[rel="alternate"][hreflang="ca-ES"]').getAttribute('href'),
+    ).toMatch(/\/ca$/);
+    await page
+      .getByRole('navigation', { name: 'Idioma' })
+      .getByRole('link', { name: 'Català' })
+      .click();
+    await expect(page).toHaveURL(/\/ca$/);
+    await expect(page.locator('html')).toHaveAttribute('lang', 'ca-ES');
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('ben protegit');
+
+    await page.goto('/ca/glosario');
+    await page
+      .getByRole('navigation', { name: 'Idioma' })
+      .getByRole('link', { name: 'English' })
+      .click();
+    await expect(page).toHaveURL(/\/en\/glosario$/);
+    await expect(page.getByRole('heading', { name: 'Glossary' })).toBeVisible();
+
+    await page.goto('/es/glosario');
+    await expect(page).toHaveURL(/\/glosario$/);
+  });
+
+  test('en inglés: pide el informe en inglés y la interfaz está en inglés', async ({
+    page,
+    context,
+  }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    const calls = await mockScan(page, () => report('mybusiness.com', SAMPLE));
+    await page.goto('/en');
+    await expect(page.getByRole('heading', { name: 'What we check' })).toBeVisible();
+    await scan(page, 'mybusiness.com');
+    expect(calls).toEqual([{ domain: 'mybusiness.com', consent: true, locale: 'en' }]);
+    await expect(page.getByText(/Overall grade: /)).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Download PDF' })).toBeVisible();
+    await expect(page.getByText('Recommended record')).toBeVisible();
+    // El enlace para compartir conserva el idioma.
+    await page.getByRole('button', { name: 'Copy link' }).click();
+    await expect(page.getByText('Link copied ✓')).toBeVisible();
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(/\/en\/#r=/);
+    const href = await page.getByRole('link', { name: 'Send by email' }).getAttribute('href');
+    expect(decodeURIComponent(href!)).toContain('Security report for mybusiness.com');
+  });
+
+  test('en catalán: formulario y errores en catalán', async ({ page }) => {
+    const calls = await mockScan(page, () => ({ status: 429, message: 'Has fet massa anàlisis.' }));
+    await page.goto('/ca');
+    const form = page.locator('form').first();
+    await form.getByLabel('Domini del teu web').fill('elmeunegoci.cat');
+    await form.getByRole('checkbox').check();
+    await form.getByRole('button', { name: 'Analitzar' }).click();
+    await expect(alert(page)).toHaveText('Has fet massa anàlisis.');
+    expect(calls[0]!.locale).toBe('ca');
+  });
+
+  for (const path of ['/ca', '/en', '/ca/privacidad', '/en/glosario']) {
+    test(`accesibilidad (axe) en ${path}`, async ({ page }) => {
+      await page.emulateMedia({ reducedMotion: 'reduce' });
+      await page.goto(path);
+      const results = await new AxeBuilder({ page })
+        .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+        .analyze();
+      expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+    });
+  }
+});

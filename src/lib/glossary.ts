@@ -1,3 +1,6 @@
+import { GLOSSARY_CA, GLOSSARY_EN } from './glossary.i18n';
+import { LOCALE_TAGS, type Locale } from './i18n';
+
 /**
  * Glosario en lenguaje llano. Cada término tiene las formas en que aparece en
  * los textos del informe (`match`) y una explicación de una o dos frases.
@@ -186,27 +189,54 @@ export type TextPart = string | { text: string; entry: GlossaryEntry };
 
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-// Formas más largas primero ("LSSI-CE" antes que "LSSI").
-const FORMS = GLOSSARY.flatMap((entry) => entry.match.map((form) => ({ form, entry }))).sort(
-  (a, b) => b.form.length - a.form.length,
-);
-const BY_FORM = new Map(FORMS.map(({ form, entry }) => [form.toLowerCase(), entry]));
-const PATTERN = new RegExp(
-  `(?<![\\p{L}\\p{N}_@./-])(${FORMS.map(({ form }) => escape(form)).join('|')})(?![\\p{L}\\p{N}_])`,
-  'giu',
-);
+const BY_LOCALE: Record<Locale, readonly GlossaryEntry[]> = {
+  es: GLOSSARY,
+  ca: GLOSSARY_CA,
+  en: GLOSSARY_EN,
+};
+
+/** Glosario del idioma, ordenado alfabéticamente. */
+export const glossaryFor = (locale: Locale): readonly GlossaryEntry[] =>
+  [...BY_LOCALE[locale]].sort((a, b) => a.term.localeCompare(b.term, LOCALE_TAGS[locale]));
+
+type Matcher = { pattern: RegExp; byForm: Map<string, GlossaryEntry> };
+const matchers = new Map<Locale, Matcher>();
+
+function matcherFor(locale: Locale): Matcher {
+  let m = matchers.get(locale);
+  if (!m) {
+    // Formas más largas primero ("LSSI-CE" antes que "LSSI").
+    const forms = BY_LOCALE[locale]
+      .flatMap((entry) => entry.match.map((form) => ({ form, entry })))
+      .sort((a, b) => b.form.length - a.form.length);
+    m = {
+      byForm: new Map(forms.map(({ form, entry }) => [form.toLowerCase(), entry])),
+      pattern: new RegExp(
+        `(?<![\\p{L}\\p{N}_@./-])(${forms.map(({ form }) => escape(form)).join('|')})(?![\\p{L}\\p{N}_])`,
+        'giu',
+      ),
+    };
+    matchers.set(locale, m);
+  }
+  return m;
+}
 
 /**
  * Parte un texto en trozos de texto normal y términos del glosario. Solo
  * marca la primera aparición de cada término, para no llenar el texto de
  * subrayados; `seen` permite compartirlo entre varios párrafos.
  */
-export function splitGlossary(text: string, seen: Set<string> = new Set()): TextPart[] {
+export function splitGlossary(
+  text: string,
+  seen: Set<string> = new Set(),
+  locale: Locale = 'es',
+): TextPart[] {
+  const { pattern, byForm } = matcherFor(locale);
   const parts: TextPart[] = [];
   let last = 0;
-  for (const m of text.matchAll(PATTERN)) {
+  for (const m of text.matchAll(pattern)) {
     const found = m[1]!;
-    const entry = BY_FORM.get(found.toLowerCase());
+    const entry = byForm.get(found.toLowerCase());
     if (!entry || seen.has(entry.id)) continue;
     // Las siglas solo cuentan en mayúsculas ("csp" o "mx" sueltos no).
     const exact = entry.match.includes(found);

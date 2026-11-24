@@ -13,11 +13,12 @@ import {
 import type { ReportData } from '@/lib/report';
 import { requestScan } from '@/lib/scanClient';
 import { decodeReport, sharedFromHash } from '@/lib/share';
-import { CATEGORY_LABELS, type Category } from '@/lib/types';
+import { localePath } from '@/lib/i18n';
+import { CATEGORY_NAMES } from '@/lib/labels';
+import { CATEGORIES, type Category } from '@/lib/types';
 import { HistoryList } from './History';
+import { useLocale, useUi } from './LocaleProvider';
 import { ReportView, type SaveState } from './ReportView';
-
-const CATEGORIES = Object.keys(CATEGORY_LABELS) as Category[];
 
 type State =
   | { phase: 'idle' }
@@ -26,6 +27,8 @@ type State =
   | { phase: 'error'; message: string };
 
 export function Scanner() {
+  const t = useUi();
+  const locale = useLocale();
   const [state, setState] = useState<State>({ phase: 'idle' });
   const resultsRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -56,15 +59,14 @@ export function Scanner() {
       } else {
         setState({
           phase: 'error',
-          message:
-            'El enlace del informe está incompleto o dañado. Pide que te lo vuelvan a enviar.',
+          message: t.errorSharedLink,
         });
       }
     });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [t.errorSharedLink]);
 
   /** Quita el informe compartido de la URL (al analizar otro dominio). */
   function clearSharedHash() {
@@ -89,14 +91,19 @@ export function Scanner() {
     setState({ phase: 'scanning', domain, done: [] });
 
     try {
-      const report = await requestScan(domain, consent, (category) =>
-        setState((s) => (s.phase === 'scanning' ? { ...s, done: [...s.done, category] } : s)),
+      const report = await requestScan(
+        domain,
+        consent,
+        (category) =>
+          setState((s) => (s.phase === 'scanning' ? { ...s, done: [...s.done, category] } : s)),
+        fetch,
+        locale,
       );
       show(report);
     } catch (error) {
       setState({
         phase: 'error',
-        message: error instanceof Error ? error.message : 'No hemos podido analizar el dominio.',
+        message: error instanceof Error ? error.message : t.errorGeneric,
       });
     }
   }
@@ -128,7 +135,7 @@ export function Scanner() {
         aria-describedby={state.phase === 'error' ? errorId : undefined}
       >
         <label htmlFor={domainId} className="font-semibold">
-          Dominio de tu web
+          {t.domainLabel}
         </label>
         <div className="flex flex-col gap-3 sm:flex-row">
           <input
@@ -141,7 +148,7 @@ export function Scanner() {
             spellCheck={false}
             required
             maxLength={253}
-            placeholder="minegocio.es"
+            placeholder={t.domainPlaceholder}
             disabled={scanning}
             className="flex-1 rounded-lg border border-slate-400 bg-white px-4 py-3 text-lg dark:border-slate-600 dark:bg-slate-950"
           />
@@ -150,7 +157,7 @@ export function Scanner() {
             disabled={scanning}
             className="press bg-brand-700 hover:bg-brand-900 rounded-lg px-6 py-3 text-lg font-semibold text-white disabled:cursor-wait disabled:opacity-70"
           >
-            {scanning ? 'Analizando…' : 'Analizar'}
+            {scanning ? t.analyzing : t.analyze}
           </button>
         </div>
         <div className="flex items-start gap-3">
@@ -163,15 +170,13 @@ export function Scanner() {
             className="mt-1 size-5 shrink-0"
           />
           <label htmlFor={consentId} className="text-sm text-slate-700 dark:text-slate-300">
-            Confirmo que este dominio es mío o que tengo permiso para analizarlo.
+            {t.consent}
           </label>
         </div>
         <p className="text-xs text-slate-600 dark:text-slate-400">
-          Solo hacemos comprobaciones pasivas, las mismas que haría un navegador: no probamos
-          contraseñas ni buscamos fallos de forma agresiva. Úsalo de forma responsable. No guardamos
-          el dominio: más detalles en la{' '}
-          <a href="/privacidad" className="underline">
-            política de privacidad
+          {t.passiveNote}{' '}
+          <a href={localePath(locale, '/privacidad')} className="underline">
+            {t.privacyPolicyLink}
           </a>
           .
         </p>
@@ -180,13 +185,13 @@ export function Scanner() {
       <div aria-live="polite" aria-busy={scanning}>
         {state.phase === 'scanning' && (
           <section
-            aria-label="Progreso del análisis"
+            aria-label={t.progressLabel}
             className="rounded-2xl border border-slate-200 p-6 dark:border-slate-800"
           >
-            <p className="font-semibold">Analizando {state.domain}…</p>
+            <p className="font-semibold">{t.analyzingDomain(state.domain)}</p>
             <div
               role="progressbar"
-              aria-label="Progreso del análisis"
+              aria-label={t.progressLabel}
               aria-valuemin={0}
               aria-valuemax={CATEGORIES.length}
               aria-valuenow={state.done.length}
@@ -215,8 +220,8 @@ export function Scanner() {
                       {done ? '✓' : ''}
                     </span>
                     <span>
-                      {CATEGORY_LABELS[c]}
-                      <span className="sr-only">{done ? ': terminado' : ': en curso'}</span>
+                      {CATEGORY_NAMES[locale][c]}
+                      <span className="sr-only">{done ? t.stepDone : t.stepRunning}</span>
                     </span>
                   </li>
                 );

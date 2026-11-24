@@ -28,11 +28,19 @@ describe('robots y sitemap', () => {
     expect(r.sitemap).toMatch(/\/sitemap\.xml$/);
   });
 
-  it('sitemap con las páginas públicas y URLs absolutas', () => {
-    const urls = sitemap().map((e) => e.url);
-    expect(urls).toHaveLength(5);
+  it('sitemap con las páginas públicas en los tres idiomas y sus alternativas', () => {
+    const entries = sitemap();
+    const urls = entries.map((e) => e.url);
+    expect(urls).toHaveLength(15);
     expect(urls.every((u) => u.startsWith('https://'))).toBe(true);
     expect(urls).toContain(`${siteUrl()}/glosario`);
+    expect(urls).toContain(`${siteUrl()}/ca/glosario`);
+    expect(urls).toContain(`${siteUrl()}/en`);
+    expect(entries[0]!.alternates?.languages).toEqual({
+      'es-ES': siteUrl(),
+      'ca-ES': `${siteUrl()}/ca`,
+      en: `${siteUrl()}/en`,
+    });
   });
 });
 

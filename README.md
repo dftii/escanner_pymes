@@ -129,6 +129,17 @@ Con `200` la respuesta es `application/x-ndjson`, con un evento JSON por línea 
 - **Glosario** (`src/lib/glossary.ts`): los términos técnicos de los hallazgos (SSL, HSTS, CSP, SPF, DKIM, DMARC, RGPD, cookies, phishing…) llevan una explicación de una línea al pasar el ratón, enfocar con el teclado o tocar en el móvil; solo la primera vez que aparecen en cada hallazgo. El globo usa la Popover API (capa superior, no lo recortan los desplegables). Página completa en `/glosario`.
 - **Compárate con otra web**: analiza un segundo dominio (cuenta para el límite y pide el mismo consentimiento) y muestra las notas lado a lado (`compareReports`).
 
+## Idiomas
+
+La web y el informe están en **español** (`/`), **catalán** (`/ca`) e **inglés** (`/en`), con un selector arriba a la derecha. El idioma va en la dirección: sin cookies ni almacenamiento.
+
+- Rutas: las páginas viven en `src/app/[lang]/`. El middleware sirve el español sin prefijo (por dentro, `/es/...`) y redirige `/es/...` a la versión sin prefijo. Las páginas legales y el glosario usan el mismo nombre en los tres idiomas (`/ca/privacidad`, `/en/glosario`).
+- Informe: `POST /api/scan` acepta `locale` y cada check genera sus textos en ese idioma. Los textos están en catálogos tipados (`messages()` en `src/lib/i18n.ts`): catalán e inglés deben tener las mismas claves que el español o no compila.
+- Catálogos: checks (`src/lib/checks/*.messages.ts` y en cada check), pasos para arreglar (`src/lib/data/remediation.{ca,en}.ts`), interfaz (`src/lib/ui.ts`), glosario (`src/lib/glossary.i18n.ts`), errores (`src/lib/net/errorMessages.ts`).
+- Las páginas legales en catalán e inglés indican que, en caso de discrepancia, prevalece la versión en castellano.
+- SEO: canónica y `hreflang` por página, `x-default` al español, y sitemap con las tres versiones.
+- Tests: cada mensaje de cada catálogo en los tres idiomas, nada sin traducir (salvo una lista revisada de textos que se escriben igual), un análisis completo en inglés y en catalán sin restos de español, y tests de interfaz en `/ca` y `/en`.
+
 ## SEO
 
 - `metadataBase`, título por página, URL canónica, Open Graph y tarjeta grande de X/Twitter (`src/app/layout.tsx`).

@@ -2,6 +2,8 @@
 
 import { useId, useRef, type ReactNode } from 'react';
 import { splitGlossary, type GlossaryEntry } from '@/lib/glossary';
+import type { Locale } from '@/lib/i18n';
+import { useLocale } from './LocaleProvider';
 
 const supportsPopover = () =>
   typeof HTMLElement !== 'undefined' && 'showPopover' in HTMLElement.prototype;
@@ -80,10 +82,20 @@ function Term({ entry, children }: { entry: GlossaryEntry; children: ReactNode }
  * Texto con los términos técnicos explicados (solo la primera vez que sale
  * cada uno). Pasa el mismo `seen` a varios párrafos para no repetirlos.
  */
-export function GlossaryText({ text, seen }: { text: string; seen?: Set<string> }) {
+export function GlossaryText({
+  text,
+  seen,
+  locale,
+}: {
+  text: string;
+  seen?: Set<string>;
+  /** Para componentes de servidor (fuera del LocaleProvider). */
+  locale?: Locale;
+}) {
+  const contextLocale = useLocale();
   return (
     <>
-      {splitGlossary(text, seen).map((part, i) =>
+      {splitGlossary(text, seen, locale ?? contextLocale).map((part, i) =>
         typeof part === 'string' ? (
           part
         ) : (

@@ -118,3 +118,19 @@ describe('utilidades de idioma', () => {
     expect(joinList(['a', 'b'], 'en')).toBe('a and b');
   });
 });
+
+describe('textos de la interfaz', () => {
+  it('UI: mismas claves, sin vacíos, y plurales correctos', async () => {
+    const { UI } = await import('@/lib/ui');
+    const keys = Object.keys(UI.es).sort();
+    for (const locale of LOCALES) {
+      expect(Object.keys(UI[locale]).sort()).toEqual(keys);
+      for (const key of keys) expect(render(UI[locale][key as keyof typeof UI.es])).not.toBe('');
+      expect(UI[locale].marqueeItems).toHaveLength(UI.es.marqueeItems.length);
+    }
+    expect(UI.es.counts(1, 1, 1)).toBe('1 fallo · 1 aviso · 1 correcto');
+    expect(UI.ca.counts(2, 1, 0)).toBe('2 errors · 1 avís · 0 correctes');
+    expect(UI.en.counts(0, 2, 1)).toBe('0 failed · 2 warnings · 1 passed');
+    expect(UI.en.thingsToFix(1)).toBe('1 thing to fix');
+  });
+});

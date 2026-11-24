@@ -1,10 +1,14 @@
+'use client';
+
 import type { Finding } from '@/lib/types';
 import { StatusBadge } from './Badges';
 import { DnsRecords } from './DnsRecords';
 import { GlossaryText } from './Glossary';
+import { useUi } from './LocaleProvider';
 
 /** Un hallazgo desplegable: los problemas se muestran abiertos. */
 export function FindingItem({ finding }: { finding: Finding }) {
+  const t = useUi();
   const isProblem = finding.status === 'fail' || finding.status === 'warning';
   // Cada término se explica una sola vez por hallazgo.
   const seen = new Set<string>();
@@ -30,7 +34,7 @@ export function FindingItem({ finding }: { finding: Finding }) {
           </p>
           {finding.risk && finding.status !== 'ok' && (
             <p>
-              <strong className="text-slate-900 dark:text-slate-100">Por qué importa: </strong>
+              <strong className="text-slate-900 dark:text-slate-100">{t.whyItMatters}</strong>
               <GlossaryText text={finding.risk} seen={seen} />
             </p>
           )}
@@ -39,7 +43,7 @@ export function FindingItem({ finding }: { finding: Finding }) {
           )}
           {finding.fix.length > 0 && (
             <div>
-              <p className="font-semibold text-slate-900 dark:text-slate-100">Cómo arreglarlo:</p>
+              <p className="font-semibold text-slate-900 dark:text-slate-100">{t.howToFix}</p>
               <ol className="mt-1 list-decimal space-y-1 pl-5">
                 {finding.fix.map((step) => (
                   <li key={step}>{step}</li>

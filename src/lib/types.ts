@@ -30,6 +30,10 @@ export type Finding = {
   records?: DnsRecordSuggestion[];
 };
 
+/** Orden de las categorías en el informe. */
+export const CATEGORIES: readonly Category[] = ['ssl', 'headers', 'email', 'privacy'];
+
+/** Nombres en español (los de otros idiomas están en `labels.ts`). */
 export const CATEGORY_LABELS: Record<Category, string> = {
   ssl: 'Certificado SSL',
   headers: 'Cabeceras de seguridad',

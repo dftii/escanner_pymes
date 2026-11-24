@@ -1,4 +1,6 @@
+import type { Locale } from './i18n';
 import type { ReportData } from './report';
+import { UI } from './ui';
 import { readEventStream } from './scanStream';
 import type { Category } from './types';
 
@@ -11,20 +13,22 @@ export async function requestScan(
   consent: boolean,
   onCategory?: (category: Category) => void,
   fetcher: typeof fetch = fetch,
+  locale: Locale = 'es',
 ): Promise<ReportData> {
+  const t = UI[locale];
   let res: Response;
   try {
     res = await fetcher('/api/scan', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ domain, consent }),
+      body: JSON.stringify(locale === 'es' ? { domain, consent } : { domain, consent, locale }),
     });
   } catch {
-    throw new Error('No hemos podido conectar con el servidor. Revisa tu conexión.');
+    throw new Error(t.errorConnect);
   }
   if (!res.ok || !res.body) {
     const body = (await res.json().catch(() => null)) as { error?: { message?: string } } | null;
-    throw new Error(body?.error?.message ?? 'No hemos podido analizar el dominio.');
+    throw new Error(body?.error?.message ?? t.errorGeneric);
   }
   let result: ReportData | null = null;
   await readEventStream(res.body, (e) => {
@@ -32,6 +36,6 @@ export async function requestScan(
     else if (e.type === 'done') result = e.result;
     else throw new Error(e.message);
   });
-  if (!result) throw new Error('El análisis se ha interrumpido. Inténtalo de nuevo.');
+  if (!result) throw new Error(t.errorInterrupted);
   return result;
 }
