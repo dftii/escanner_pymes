@@ -1,4 +1,5 @@
 import { CheckMarquee } from '@/components/CheckMarquee';
+import { Faq } from '@/components/Faq';
 import { GlossaryText } from '@/components/Glossary';
 import { Scribble, stagger } from '@/components/Motion';
 import { Scanner } from '@/components/Scanner';
@@ -75,6 +76,8 @@ export default function Home() {
           ))}
         </ul>
       </section>
+
+      <Faq />
     </main>
   );
 }

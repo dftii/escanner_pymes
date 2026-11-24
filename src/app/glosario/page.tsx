@@ -3,7 +3,8 @@ import { LegalPage } from '@/components/LegalPage';
 import { GLOSSARY } from '@/lib/glossary';
 
 export const metadata: Metadata = {
-  title: 'Glosario · Escáner Pymes',
+  alternates: { canonical: '/glosario' },
+  title: 'Glosario',
   description:
     'Qué significan SSL, HSTS, CSP, SPF, DKIM, DMARC, RGPD y otros términos del informe de seguridad, explicado sin tecnicismos.',
 };

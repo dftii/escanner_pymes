@@ -1,7 +1,10 @@
 import type { Metadata } from 'next';
 import { LegalPage } from '@/components/LegalPage';
 
-export const metadata: Metadata = { title: 'Política de cookies · Escáner Pymes' };
+export const metadata: Metadata = {
+  alternates: { canonical: '/cookies' },
+  title: 'Política de cookies',
+};
 
 export default function Cookies() {
   return (

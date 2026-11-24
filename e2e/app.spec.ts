@@ -214,3 +214,39 @@ test.describe('accesibilidad (axe)', () => {
     expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
   });
 });
+
+test.describe('SEO', () => {
+  test('robots.txt, sitemap.xml e imagen para compartir', async ({ request }) => {
+    const robots = await (await request.get('/robots.txt')).text();
+    expect(robots).toContain('Disallow: /api/');
+    expect(robots).toMatch(/Sitemap: https:\/\/.+\/sitemap\.xml/);
+    const sitemap = await (await request.get('/sitemap.xml')).text();
+    for (const path of ['/glosario', '/privacidad', '/cookies', '/aviso-legal']) {
+      expect(sitemap).toContain(`${path}</loc>`);
+    }
+    const og = await request.get('/opengraph-image');
+    expect(og.headers()['content-type']).toBe('image/png');
+    expect((await og.body()).length).toBeGreaterThan(10_000);
+  });
+
+  test('metadatos, preguntas frecuentes y JSON-LD válido', async ({ page }) => {
+    await page.goto('/');
+    await expect(page).toHaveTitle(/Escáner Pymes/);
+    const meta = (sel: string) => page.locator(sel).first().getAttribute('content');
+    expect(await meta('meta[property="og:image"]')).toMatch(/\/opengraph-image/);
+    expect(await meta('meta[name="twitter:card"]')).toBe('summary_large_image');
+    expect(await page.locator('link[rel="canonical"]').getAttribute('href')).toMatch(/^https:\/\//);
+
+    const faq = page.getByRole('region', { name: 'Preguntas frecuentes' });
+    await faq.getByText('¿Cuánto cuesta?').click();
+    await expect(faq.getByText(/es gratuito/)).toBeVisible();
+
+    const ld = await page.locator('script[type="application/ld+json"]').textContent();
+    const data = JSON.parse(ld!) as Array<{ '@type': string; mainEntity?: unknown[] }>;
+    expect(data.map((d) => d['@type'])).toEqual(['WebApplication', 'FAQPage']);
+    expect(data[1]!.mainEntity!.length).toBeGreaterThanOrEqual(5);
+
+    await page.goto('/glosario');
+    await expect(page).toHaveTitle('Glosario · Escáner Pymes');
+  });
+});

@@ -129,6 +129,14 @@ Con `200` la respuesta es `application/x-ndjson`, con un evento JSON por línea 
 - **Glosario** (`src/lib/glossary.ts`): los términos técnicos de los hallazgos (SSL, HSTS, CSP, SPF, DKIM, DMARC, RGPD, cookies, phishing…) llevan una explicación de una línea al pasar el ratón, enfocar con el teclado o tocar en el móvil; solo la primera vez que aparecen en cada hallazgo. El globo usa la Popover API (capa superior, no lo recortan los desplegables). Página completa en `/glosario`.
 - **Compárate con otra web**: analiza un segundo dominio (cuenta para el límite y pide el mismo consentimiento) y muestra las notas lado a lado (`compareReports`).
 
+## SEO
+
+- `metadataBase`, título por página, URL canónica, Open Graph y tarjeta grande de X/Twitter (`src/app/layout.tsx`).
+- URL pública (`src/lib/site.ts`): `NEXT_PUBLIC_SITE_URL` si se define, si no `VERCEL_PROJECT_PRODUCTION_URL` (la pone Vercel), si no `https://escanner-pymes.vercel.app`.
+- `/robots.txt` (bloquea `/api/`) y `/sitemap.xml` con las páginas públicas.
+- Imagen para compartir generada (`src/app/opengraph-image.tsx`, 1200×630) e icono (`src/app/icon.svg`).
+- Preguntas frecuentes en la portada con datos estructurados `WebApplication` y `FAQPage` (JSON-LD con el nonce de la CSP).
+
 ## Animaciones
 
 Solo CSS (más un contador con `requestAnimationFrame`), sin librerías: subrayado dibujado a mano en el titular, entrada escalonada del texto, cinta continua con las comprobaciones (con botón de pausa, WCAG 2.2.2), tarjetas con rebote al pasar el ratón, aparición al hacer scroll (`animation-timeline: view()` donde el navegador lo admite), notas que "saltan" al aparecer y nota global que cuenta hasta su valor, con un anillo que se rellena hasta la puntuación. Además: barra de progreso real durante el análisis, despliegue suave de los hallazgos (`interpolate-size`), fondo con dos manchas de color que se mueven muy despacio, sacudida única en los errores y confirmaciones al copiar o guardar. Todo está dentro de `prefers-reduced-motion: no-preference` y solo anima `transform`, `opacity` o trazos SVG: sin saltos de maquetación (CLS 0) y el titular no se anima, para no retrasar el LCP.

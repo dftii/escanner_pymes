@@ -1,12 +1,28 @@
 import type { Metadata, Viewport } from 'next';
 import { headers } from 'next/headers';
 import Link from 'next/link';
+import { SITE_DESCRIPTION, SITE_NAME, siteUrl } from '@/lib/site';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Escáner Pymes · Revisa la seguridad de tu web',
-  description:
-    'Informe gratuito y automático sobre el certificado SSL, las cabeceras de seguridad, la protección del correo y las cookies de la web de tu negocio.',
+  metadataBase: new URL(siteUrl()),
+  title: {
+    default: `${SITE_NAME} · Revisa la seguridad de tu web`,
+    template: `%s · ${SITE_NAME}`,
+  },
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  alternates: { canonical: '/' },
+  openGraph: {
+    type: 'website',
+    locale: 'es_ES',
+    siteName: SITE_NAME,
+    title: `${SITE_NAME} · Revisa la seguridad de tu web`,
+    description: SITE_DESCRIPTION,
+    url: '/',
+  },
+  twitter: { card: 'summary_large_image' },
+  robots: { index: true, follow: true },
 };
 
 export const viewport: Viewport = {

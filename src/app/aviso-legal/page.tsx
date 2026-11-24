@@ -2,7 +2,10 @@ import type { Metadata } from 'next';
 import { Dato, LegalPage } from '@/components/LegalPage';
 import { getLegalInfo, LEGAL_ENV_VARS as V } from '@/lib/legal';
 
-export const metadata: Metadata = { title: 'Aviso legal · Escáner Pymes' };
+export const metadata: Metadata = {
+  alternates: { canonical: '/aviso-legal' },
+  title: 'Aviso legal',
+};
 
 export default function AvisoLegal() {
   const legal = getLegalInfo();
