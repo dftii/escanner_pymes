@@ -1,5 +1,6 @@
 import type { Finding } from '@/lib/types';
 import { StatusBadge } from './Badges';
+import { DnsRecords } from './DnsRecords';
 
 /** Un hallazgo desplegable: los problemas se muestran abiertos. */
 export function FindingItem({ finding }: { finding: Finding }) {
@@ -27,6 +28,9 @@ export function FindingItem({ finding }: { finding: Finding }) {
               <strong className="text-slate-900 dark:text-slate-100">Por qué importa: </strong>
               {finding.risk}
             </p>
+          )}
+          {finding.records && finding.records.length > 0 && (
+            <DnsRecords records={finding.records} />
           )}
           {finding.fix.length > 0 && (
             <div>

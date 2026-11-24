@@ -111,6 +111,12 @@ Con `200` la respuesta es `application/x-ndjson`, con un evento JSON por línea 
 
 ## Informe
 
+**Registros recomendados** (`src/lib/dnsRecords.ts`): cuando SPF o DMARC fallan, el hallazgo trae el registro TXT exacto (`records`), con botones para copiar el nombre y el valor:
+
+- SPF: `-all` si el dominio no tiene correo; el `include:` del proveedor detectado por los MX (Google, Microsoft 365, Zoho, OVH, IONOS, Hostinger, GoDaddy, Proton) o `mx` si no se conoce; si ya hay uno o varios, se unen sus mecanismos en uno solo terminado en `~all`. Con demasiadas consultas no se propone nada: hay que decidir qué quitar.
+- DMARC: `p=reject` directo si el dominio no envía correo; si no, plan en tres pasos (`none` con informes → `quarantine` → `reject`), empezando por el siguiente al actual. En subdominios que heredan, la propuesta va en el dominio principal.
+- El primer registro se añade al resumen copiado y al email, para pasárselo al informático.
+
 - **Descargar PDF** (vista imprimible) y **Copiar resumen**.
 - **Enviar por email**: enlace `mailto:` con el resumen (`mailtoHref`, recortado a ~1900 caracteres). Abre el programa de correo del usuario; no hay envío desde el servidor ni proveedor de correo.
 - **Historial** (`src/lib/history.ts`): con "Guardar en este navegador" el informe completo se guarda en `localStorage` (máximo 20; si se llena, se descartan los más antiguos). Se pueden volver a abrir o borrar, y al ver un informe de un dominio con otro anterior guardado aparece la tabla **Evolución**.

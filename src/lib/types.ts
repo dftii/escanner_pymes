@@ -1,3 +1,5 @@
+import type { DnsRecordSuggestion } from './dnsRecords';
+
 /** Categorías del informe. */
 export type Category = 'ssl' | 'headers' | 'email' | 'privacy';
 
@@ -24,6 +26,8 @@ export type Finding = {
   fix: string[];
   /** Datos técnicos de respaldo (no se muestran por defecto). */
   evidence?: Record<string, unknown>;
+  /** Registros DNS recomendados para copiar y pegar (SPF, DMARC…). */
+  records?: DnsRecordSuggestion[];
 };
 
 export const CATEGORY_LABELS: Record<Category, string> = {

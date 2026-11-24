@@ -305,3 +305,50 @@ describe('DMARC heredado en subdominios', () => {
     expect(f['email.dmarc']).toMatchObject({ status: 'fail', title: 'Falta la política DMARC' });
   });
 });
+
+describe('registros recomendados en los hallazgos', () => {
+  it('sin SPF ni DMARC con Google: propone include de Google y el plan DMARC', async () => {
+    const f = await run({ mx: GOOD.mx, txt: {} });
+    expect(f['email.spf']!.records).toEqual([
+      expect.objectContaining({ host: '@', value: 'v=spf1 include:_spf.google.com ~all' }),
+    ]);
+    expect(f['email.dmarc']!.records!.map((r) => r.value)[0]).toBe(
+      `v=DMARC1; p=none; rua=mailto:dmarc@${D}`,
+    );
+  });
+
+  it('dominio sin correo: -all y reject', async () => {
+    const f = await run({ txt: {} });
+    expect(f['email.spf']!.records![0]!.value).toBe('v=spf1 -all');
+    expect(f['email.dmarc']!.records!.map((r) => r.value)).toEqual(['v=DMARC1; p=reject']);
+  });
+
+  it('SPF correcto y DMARC en reject: sin propuestas', async () => {
+    const f = await run(GOOD);
+    expect(f['email.spf']!.records).toBeUndefined();
+    expect(f['email.dmarc']!.records).toBeUndefined();
+  });
+
+  it('varios SPF, "+all" o sin final: propone uno corregido', async () => {
+    const multi = await run(withTxt({ [D]: ['v=spf1 a ~all', 'v=spf1 mx -all'] }));
+    expect(multi['email.spf']!.records![0]!.value).toBe('v=spf1 a mx ~all');
+    const plus = await run(withTxt({ [D]: 'v=spf1 a +all' }));
+    expect(plus['email.spf']!.records![0]!.value).toBe('v=spf1 a ~all');
+    const open = await run(withTxt({ [D]: 'v=spf1 a' }));
+    expect(open['email.spf']!.records![0]!.value).toBe('v=spf1 a ~all');
+  });
+
+  it('DMARC en none, inválido o duplicado: propone el siguiente paso', async () => {
+    const none = await run(withTxt({ [`_dmarc.${D}`]: 'v=DMARC1; p=none' }));
+    expect(none['email.dmarc']!.records![0]!.value).toContain('p=quarantine');
+    const bad = await run(withTxt({ [`_dmarc.${D}`]: 'v=DMARC1; p=loquesea' }));
+    expect(bad['email.dmarc']!.records![0]!.value).toContain('p=none');
+    const dup = await run(withTxt({ [`_dmarc.${D}`]: ['v=DMARC1; p=none', 'v=DMARC1; p=reject'] }));
+    expect(dup['email.dmarc']!.records).toHaveLength(3);
+  });
+
+  it('DMARC heredado en "none": la propuesta va en el dominio principal', async () => {
+    const f = await run(withTxt({ [`_dmarc.${D}`]: 'v=DMARC1; p=none' }), `tienda.${D}`);
+    expect(f['email.dmarc']!.records![0]!.fqdn).toBe(`_dmarc.${D}`);
+  });
+});

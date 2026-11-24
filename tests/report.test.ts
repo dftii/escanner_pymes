@@ -67,3 +67,27 @@ describe('compareReports', () => {
     expect(compareReports(b, a).find((r) => r.key === 'ssl')!.better).toBe('b');
   });
 });
+
+describe('summaryText con registros recomendados', () => {
+  it('añade el primer registro bajo el problema', async () => {
+    const { summaryText } = await import('@/lib/report');
+    const text = summaryText(
+      report('minegocio.es', [
+        {
+          ...finding('email.dmarc', 'email', 'fail'),
+          records: [
+            { type: 'TXT', host: '_dmarc', fqdn: '_dmarc.minegocio.es', value: 'v=DMARC1; p=none' },
+            {
+              type: 'TXT',
+              host: '_dmarc',
+              fqdn: '_dmarc.minegocio.es',
+              value: 'v=DMARC1; p=reject',
+            },
+          ],
+        },
+      ]),
+    );
+    expect(text).toContain('✗ Título de email.dmarc\n   → TXT _dmarc: v=DMARC1; p=none');
+    expect(text).not.toContain('p=reject');
+  });
+});

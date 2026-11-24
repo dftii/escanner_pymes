@@ -1,3 +1,4 @@
+import { recordLine } from './dnsRecords';
 import { sortBySeverity } from './findings';
 import { scoreReport, type Grade } from './scoring';
 import { CATEGORY_LABELS, type Category, type Finding } from './types';
@@ -48,7 +49,11 @@ export function summaryText(report: ReportData): string {
     ),
     '',
     problems.length > 0 ? 'Qué conviene arreglar:' : 'No hay problemas importantes.',
-    ...problems.map((f) => `${ICON[f.status]} ${f.title}`),
+    ...problems.flatMap((f) => [
+      `${ICON[f.status]} ${f.title}`,
+      // El primer registro recomendado (p. ej. el paso 1 de DMARC), listo para el informático.
+      ...(f.records?.[0] ? [`   → ${recordLine(f.records[0])}`] : []),
+    ]),
     '',
     ...report.notices,
     'Generado con Escáner Pymes.',
