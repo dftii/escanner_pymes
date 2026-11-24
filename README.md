@@ -131,10 +131,10 @@ Con `200` la respuesta es `application/x-ndjson`, con un evento JSON por línea 
 
 ## Tema claro y oscuro
 
-Por defecto la web sigue al sistema (`prefers-color-scheme`) y cambia sola si el sistema cambia. Con el selector de arriba a la derecha se puede fijar **claro** u **oscuro**; la elección se guarda solo en `localStorage` del navegador (`escaner-pymes:tema`), sin cookies.
+Por defecto la web sigue al sistema (`prefers-color-scheme`) y cambia sola si el sistema cambia. Un botón redondo arriba a la derecha, junto al idioma, muestra un **sol** (modo claro) o una **luna** (modo oscuro) y alterna entre los dos con una animación: el icono que sale gira y se encoge, el que entra gira y crece, y los colores de la página cambian suavemente. Con movimiento reducido, el cambio es instantáneo.
 
-- El modo oscuro de Tailwind depende de `data-theme` en `<html>` (`@custom-variant dark` en `globals.css`).
-- Un script mínimo en el `<head>`, con el nonce de la CSP (`src/lib/theme.ts`), pone el tema antes de pintar: sin parpadeo.
+- La elección se guarda solo en `localStorage` (`escaner-pymes:tema`), sin cookies. Si coincide con el tema del sistema, se borra y se vuelve a seguir al sistema.
+- El modo oscuro de Tailwind depende de `data-theme` en `<html>` (`@custom-variant dark` en `globals.css`). Un script mínimo en el `<head>`, con el nonce de la CSP (`src/lib/theme.ts`), lo pone antes de pintar: sin parpadeo. El icono lo decide el CSS, así que es correcto desde el primer pintado.
 - Al imprimir o guardar el PDF se usa siempre el tema claro.
 
 ## Idiomas

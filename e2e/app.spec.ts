@@ -323,28 +323,32 @@ test.describe('idiomas', () => {
 });
 
 test.describe('tema claro y oscuro', () => {
-  test('sigue al sistema y se puede elegir a mano; se recuerda al recargar', async ({ page }) => {
+  test('sigue al sistema y el botón cambia de tema; se recuerda al recargar', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'dark' });
     await page.goto('/');
     const html = page.locator('html');
     await expect(html).toHaveAttribute('data-theme', 'dark');
     const bg = () => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
     const darkBg = await bg();
+    // En oscuro se ve la luna; el sol está oculto.
+    const opacity = (sel: string) =>
+      page.locator(sel).evaluate((el) => Number(getComputedStyle(el).opacity));
+    await expect.poll(() => opacity('.theme-moon')).toBe(1);
+    expect(await opacity('.theme-sun')).toBe(0);
 
-    const group = page.getByRole('radiogroup', { name: 'Tema' });
-    await group.getByRole('radio', { name: 'Claro' }).click();
+    await page.getByRole('button', { name: 'Activar el modo claro' }).click();
     await expect(html).toHaveAttribute('data-theme', 'light');
-    expect(await bg()).not.toBe(darkBg);
-    await expect(group.getByRole('radio', { name: 'Claro' })).toHaveAttribute(
-      'aria-checked',
-      'true',
-    );
+    await expect.poll(bg).not.toBe(darkBg);
+    await expect.poll(() => opacity('.theme-sun')).toBe(1);
+    await expect(page.getByRole('button', { name: 'Activar el modo oscuro' })).toBeVisible();
 
+    // Distinto del sistema: se recuerda.
     await page.reload();
     await expect(html).toHaveAttribute('data-theme', 'light');
 
-    await group.getByRole('radio', { name: 'Automático (según el sistema)' }).click();
-    await expect(html).toHaveAttribute('data-theme', 'dark');
+    // Volver al tema del sistema olvida la preferencia y se sigue al sistema otra vez.
+    await page.getByRole('button', { name: 'Activar el modo oscuro' }).click();
+    expect(await page.evaluate(() => localStorage.getItem('escaner-pymes:tema'))).toBeNull();
     await page.emulateMedia({ colorScheme: 'light' });
     await expect(html).toHaveAttribute('data-theme', 'light');
   });
@@ -353,7 +357,7 @@ test.describe('tema claro y oscuro', () => {
     await page.emulateMedia({ colorScheme: 'dark', reducedMotion: 'reduce' });
     await mockScan(page, () => report('minegocio.es', SAMPLE));
     await page.goto('/');
-    await page.getByRole('radio', { name: 'Oscuro' }).click();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
     await scan(page, 'minegocio.es');
     const results = await new AxeBuilder({ page })
       .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])

@@ -320,3 +320,53 @@ body {
     display: none;
   }
 }
+
+/* ─── Botón de sol y luna ──────────────────────────────────────────────────
+ * Los dos iconos están siempre en el botón; el tema (data-theme) decide cuál
+ * se ve. Al cambiar, el que sale gira y se encoge y el que entra gira y crece.
+ */
+.theme-sun {
+  transform: rotate(0) scale(1);
+  opacity: 1;
+}
+.theme-moon {
+  transform: rotate(-90deg) scale(0.3);
+  opacity: 0;
+}
+[data-theme='dark'] .theme-sun {
+  transform: rotate(90deg) scale(0.3);
+  opacity: 0;
+}
+[data-theme='dark'] .theme-moon {
+  transform: rotate(0) scale(1);
+  opacity: 1;
+}
+.theme-rays {
+  transform-origin: 12px 12px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .theme-icon {
+    transition:
+      transform 500ms var(--ease-spring),
+      opacity 300ms ease;
+  }
+  .theme-toggle:hover .theme-rays {
+    transition: transform 600ms var(--ease-out-expo);
+    transform: rotate(45deg);
+  }
+  .theme-toggle:hover .theme-moon {
+    transition: transform 400ms var(--ease-spring);
+  }
+  [data-theme='dark'] .theme-toggle:hover .theme-moon {
+    transform: rotate(-15deg) scale(1.05);
+  }
+  /* Cambio de colores suave en toda la página, solo al pulsar el botón. */
+  html.theme-changing,
+  html.theme-changing * {
+    transition:
+      background-color 350ms ease,
+      border-color 350ms ease,
+      color 350ms ease !important;
+  }
+}
