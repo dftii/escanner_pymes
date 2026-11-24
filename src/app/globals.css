@@ -361,12 +361,40 @@ body {
   [data-theme='dark'] .theme-toggle:hover .theme-moon {
     transform: rotate(-15deg) scale(1.05);
   }
-  /* Cambio de colores suave en toda la página, solo al pulsar el botón. */
-  html.theme-changing,
-  html.theme-changing * {
-    transition:
-      background-color 350ms ease,
-      border-color 350ms ease,
-      color 350ms ease !important;
+}
+
+/* ─── Transiciones fluidas ─────────────────────────────────────────────────
+ * Cambio de tema: el tema nuevo entra en círculo desde el botón, encima del
+ * anterior (View Transitions). Una sola imagen que se revela: los textos no
+ * parpadean ni desaparecen.
+ */
+html.theme-vt::view-transition-old(root),
+html.theme-vt::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+/*
+ * Al pasar de una página a otra (idioma, glosario, legales): fundido suave en
+ * lugar de recargar a golpe, en los navegadores que lo admiten.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  @view-transition {
+    navigation: auto;
   }
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 250ms;
+  }
+}
+
+/*
+ * Las animaciones de entrada solo la primera vez: si se llega desde otra
+ * página de la propia web (p. ej. al cambiar de idioma), todo aparece ya en
+ * su sitio. La clase la pone el script del <head> mirando de dónde se viene.
+ */
+html.no-intro .rise-in,
+html.no-intro .scribble-path {
+  animation: none;
+  stroke-dashoffset: 0;
 }

@@ -57,20 +57,45 @@ export function ThemeToggle() {
     };
   }, []);
 
-  function toggle() {
-    const next = currentTheme() ? 'light' : 'dark';
+  function toggle(event: React.MouseEvent<HTMLButtonElement>) {
     const root = document.documentElement;
-    // Transición de colores solo durante el cambio (no al cargar ni al navegar).
-    root.classList.add('theme-changing');
-    window.setTimeout(() => root.classList.remove('theme-changing'), 400);
-    root.dataset.theme = next;
+    const next = currentTheme() ? 'light' : 'dark';
+    const apply = () => {
+      root.dataset.theme = next;
+      setDark(next === 'dark');
+    };
     try {
       if ((next === 'dark') === systemDark()) localStorage.removeItem(THEME_KEY);
       else localStorage.setItem(THEME_KEY, next);
     } catch {
       // Sin almacenamiento: el cambio vale para esta visita.
     }
-    setDark(next === 'dark');
+
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduced || typeof document.startViewTransition !== 'function') {
+      apply();
+      return;
+    }
+    // El tema nuevo se revela en círculo desde el botón.
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = rect.left + rect.width / 2;
+    const y = rect.top + rect.height / 2;
+    const radius = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
+    root.classList.add('theme-vt');
+    const transition = document.startViewTransition(apply);
+    transition.ready
+      .then(() =>
+        root.animate(
+          { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${radius}px at ${x}px ${y}px)`] },
+          {
+            duration: 550,
+            easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
+            pseudoElement: '::view-transition-new(root)',
+          },
+        ),
+      )
+      .catch(() => {});
+    transition.finished.finally(() => root.classList.remove('theme-vt'));
   }
 
   const label = dark === null ? t.theme : dark ? t.themeToLight : t.themeToDark;

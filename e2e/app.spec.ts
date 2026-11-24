@@ -365,3 +365,18 @@ test.describe('tema claro y oscuro', () => {
     expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
   });
 });
+
+test.describe('fluidez', () => {
+  test('al cambiar de idioma no se repiten las animaciones de entrada', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('html')).not.toHaveClass(/no-intro/);
+    await page.locator('a[hreflang="ca"]').click();
+    await expect(page).toHaveURL(/\/ca$/);
+    await expect(page.locator('html')).toHaveClass(/no-intro/);
+    const anim = await page
+      .locator('.rise-in')
+      .first()
+      .evaluate((el) => getComputedStyle(el).animationName);
+    expect(anim).toBe('none');
+  });
+});

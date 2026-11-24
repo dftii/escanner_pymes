@@ -15,7 +15,9 @@ export const resolveTheme = (choice: ThemeChoice, systemDark: boolean): 'light' 
   choice === 'system' ? (systemDark ? 'dark' : 'light') : choice;
 
 /**
- * Script que va en el <head> (con el nonce de la CSP) y pone el tema antes
- * de pintar la página. Si localStorage no está disponible, sigue al sistema.
+ * Script que va en el <head> (con el nonce de la CSP) y, antes de pintar:
+ * - pone el tema (si localStorage no está disponible, sigue al sistema);
+ * - marca `no-intro` si se viene de otra página de la web, para no repetir
+ *   las animaciones de entrada (sin guardar nada: se mira `document.referrer`).
  */
-export const THEME_SCRIPT = `(function(){try{var c=localStorage.getItem('${THEME_KEY}')}catch(e){}var d=c==='dark'||(c!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.dataset.theme=d?'dark':'light'})()`;
+export const THEME_SCRIPT = `(function(){var h=document.documentElement;try{var c=localStorage.getItem('${THEME_KEY}')}catch(e){}var d=c==='dark'||(c!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);h.dataset.theme=d?'dark':'light';try{if(document.referrer&&new URL(document.referrer).origin===location.origin)h.classList.add('no-intro')}catch(e){}})()`;
