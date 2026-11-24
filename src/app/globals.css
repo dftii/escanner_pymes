@@ -12,6 +12,8 @@
 }
 
 body {
+  /* Las animaciones del fondo nunca deben crear scroll horizontal. */
+  overflow-x: clip;
   @apply bg-white text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100;
 }
 
@@ -162,5 +164,142 @@ body {
       animation-timeline: view();
       animation-range: entry 0% entry 60%;
     }
+  }
+}
+
+/* ─── Más animaciones (sutiles, casi todas de una sola vez) ─────────────── */
+@keyframes shimmer {
+  to {
+    transform: translateX(200%);
+  }
+}
+@keyframes shake-once {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20%,
+  60% {
+    transform: translateX(-6px);
+  }
+  40%,
+  80% {
+    transform: translateX(6px);
+  }
+}
+@keyframes drift {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(var(--dx, 30px), var(--dy, 20px)) scale(1.08);
+  }
+}
+@keyframes fill-ring {
+  from {
+    stroke-dashoffset: 1;
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Barra de progreso del análisis: crece con cada categoría terminada. */
+.progress-fill {
+  transform-origin: left;
+  transition: transform 600ms var(--ease-out-expo);
+}
+
+/* Anillo alrededor de la nota global. */
+.score-ring {
+  stroke-dasharray: 1;
+}
+
+/* Enlaces con subrayado que crece. */
+.link-grow {
+  background-image: linear-gradient(currentColor, currentColor);
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+  background-size: 100% 1px;
+  text-decoration: none;
+}
+
+/* Fondo suave del titular. */
+.blob {
+  filter: blur(48px);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .progress-shimmer::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    width: 50%;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.45), transparent);
+    animation: shimmer 1.4s ease-in-out infinite;
+  }
+
+  .score-ring {
+    animation: fill-ring 1s var(--ease-out-expo) 150ms both;
+  }
+
+  .shake-once {
+    animation: shake-once 450ms ease-in-out;
+  }
+
+  .blob {
+    animation: drift 18s ease-in-out infinite;
+  }
+  .blob:nth-child(2) {
+    animation-duration: 24s;
+    animation-delay: -6s;
+  }
+
+  .fade-in {
+    animation: fade-in 300ms ease-out both;
+  }
+
+  .link-grow {
+    background-size: 0 1px;
+    transition: background-size 250ms var(--ease-out-expo);
+  }
+  .link-grow:hover,
+  .link-grow:focus-visible {
+    background-size: 100% 1px;
+  }
+
+  /* Despliegue suave de los hallazgos (navegadores que lo admiten). */
+  @supports (interpolate-size: allow-keywords) {
+    :root {
+      interpolate-size: allow-keywords;
+    }
+    details::details-content {
+      block-size: 0;
+      overflow: clip;
+      transition:
+        block-size 350ms var(--ease-out-expo),
+        content-visibility 350ms allow-discrete;
+    }
+    details[open]::details-content {
+      block-size: auto;
+    }
+  }
+}
+
+/* Sin animación, el subrayado se ve siempre. */
+@media (prefers-reduced-motion: reduce) {
+  .link-grow {
+    text-decoration: underline;
+    background-image: none;
+  }
+}
+
+@media print {
+  details::details-content {
+    block-size: auto !important;
   }
 }

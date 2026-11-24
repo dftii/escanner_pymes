@@ -21,7 +21,7 @@ export function ComparisonTable({
 }) {
   const rows = compareReports(a, b);
   return (
-    <table className="w-full border-collapse text-left">
+    <table className="fade-in w-full border-collapse text-left">
       <caption className="mb-2 text-left text-sm text-slate-600 dark:text-slate-400">
         {caption}
       </caption>

@@ -22,7 +22,11 @@ const CATEGORY_HINTS: Record<Category, string> = {
 export default function Home() {
   return (
     <main id="contenido" className="mx-auto flex max-w-3xl flex-col gap-10 px-4 py-12 sm:py-16">
-      <header className="flex flex-col gap-4 print:hidden">
+      <header className="relative isolate flex flex-col gap-4 print:hidden">
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10">
+          <span className="blob absolute -top-10 -left-16 size-56 rounded-full bg-blue-200/50 [--dx:40px] [--dy:24px] dark:bg-blue-900/30" />
+          <span className="blob absolute top-4 -right-10 size-48 rounded-full bg-amber-200/50 [--dx:-36px] [--dy:30px] dark:bg-amber-900/20" />
+        </div>
         <p
           className="rise-in text-brand-700 text-sm font-semibold tracking-wide uppercase dark:text-blue-300"
           style={stagger(0)}

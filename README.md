@@ -118,7 +118,7 @@ Con `200` la respuesta es `application/x-ndjson`, con un evento JSON por línea 
 
 ## Animaciones
 
-Solo CSS (más un contador con `requestAnimationFrame`), sin librerías: subrayado dibujado a mano en el titular, entrada escalonada del texto, cinta continua con las comprobaciones (con botón de pausa, WCAG 2.2.2), tarjetas con rebote al pasar el ratón, aparición al hacer scroll (`animation-timeline: view()` donde el navegador lo admite), notas que "saltan" al aparecer y nota global que cuenta hasta su valor. Todo está dentro de `prefers-reduced-motion: no-preference` y solo anima `transform`, `opacity` o trazos SVG: sin saltos de maquetación (CLS 0) y el titular no se anima, para no retrasar el LCP.
+Solo CSS (más un contador con `requestAnimationFrame`), sin librerías: subrayado dibujado a mano en el titular, entrada escalonada del texto, cinta continua con las comprobaciones (con botón de pausa, WCAG 2.2.2), tarjetas con rebote al pasar el ratón, aparición al hacer scroll (`animation-timeline: view()` donde el navegador lo admite), notas que "saltan" al aparecer y nota global que cuenta hasta su valor, con un anillo que se rellena hasta la puntuación. Además: barra de progreso real durante el análisis, despliegue suave de los hallazgos (`interpolate-size`), fondo con dos manchas de color que se mueven muy despacio, sacudida única en los errores y confirmaciones al copiar o guardar. Todo está dentro de `prefers-reduced-motion: no-preference` y solo anima `transform`, `opacity` o trazos SVG: sin saltos de maquetación (CLS 0) y el titular no se anima, para no retrasar el LCP.
 
 ## Puntuación
 

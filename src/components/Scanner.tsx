@@ -149,6 +149,21 @@ export function Scanner() {
             className="rounded-2xl border border-slate-200 p-6 dark:border-slate-800"
           >
             <p className="font-semibold">Analizando {state.domain}…</p>
+            <div
+              role="progressbar"
+              aria-label="Progreso del análisis"
+              aria-valuemin={0}
+              aria-valuemax={CATEGORIES.length}
+              aria-valuenow={state.done.length}
+              className="progress-shimmer relative mt-4 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800"
+            >
+              <div
+                className="progress-fill bg-brand-600 h-full rounded-full dark:bg-blue-400"
+                style={{
+                  transform: `scaleX(${Math.max(0.06, state.done.length / CATEGORIES.length)})`,
+                }}
+              />
+            </div>
             <ul className="mt-4 grid gap-2 sm:grid-cols-2">
               {CATEGORIES.map((c) => {
                 const done = state.done.includes(c);
@@ -179,7 +194,7 @@ export function Scanner() {
           <p
             id={errorId}
             role="alert"
-            className="rounded-xl border border-red-300 bg-red-50 p-4 text-red-900 dark:border-red-800 dark:bg-red-950 dark:text-red-100"
+            className="shake-once rounded-xl border border-red-300 bg-red-50 p-4 text-red-900 dark:border-red-800 dark:bg-red-950 dark:text-red-100"
           >
             {state.message}
           </p>

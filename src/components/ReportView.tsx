@@ -5,7 +5,7 @@ import { sortBySeverity } from '@/lib/findings';
 import { formatDate, mailtoHref, summaryText, type ReportData } from '@/lib/report';
 import { GRADE_LABELS, scoreReport } from '@/lib/scoring';
 import { CATEGORY_LABELS, type Category } from '@/lib/types';
-import { GradeBadge } from './Badges';
+import { GradeBadge, ScoreRing } from './Badges';
 import { ComparisonTable, CompetitorCompare } from './Comparison';
 import { CountUp } from './CountUp';
 import { FindingItem } from './FindingItem';
@@ -66,7 +66,7 @@ export function ReportView({
     <article aria-labelledby="informe-titulo" className="flex flex-col gap-8">
       <header className="flex flex-col gap-6 rounded-2xl border border-slate-200 p-6 sm:flex-row sm:items-center dark:border-slate-800">
         <span className="pop-in inline-flex shrink-0">
-          <GradeBadge grade={global.grade} score={global.score} size="xl" />
+          <ScoreRing grade={global.grade} score={global.score} />
         </span>
         <div className="flex-1">
           <h2 id="informe-titulo" className="text-2xl font-bold break-all">
@@ -117,14 +117,18 @@ export function ReportView({
               disabled={saveState === 'saved'}
               className="press rounded-lg border border-slate-300 px-4 py-2 font-semibold hover:bg-slate-100 disabled:cursor-default disabled:opacity-70 dark:border-slate-700 dark:hover:bg-slate-800"
             >
-              {saveState === 'saved' ? 'Guardado ✓' : 'Guardar en este navegador'}
+              {saveState === 'saved' ? (
+                <span className="check-pop inline-block">Guardado ✓</span>
+              ) : (
+                'Guardar en este navegador'
+              )}
             </button>
           )}
           <p
             role="status"
             className="min-h-5 text-center text-sm text-slate-600 dark:text-slate-400"
           >
-            {copied === 'ok' && 'Resumen copiado'}
+            {copied === 'ok' && <span className="fade-in">Resumen copiado ✓</span>}
             {copied === 'error' && 'No se ha podido copiar'}
             {saveState === 'error' && 'No se ha podido guardar'}
           </p>

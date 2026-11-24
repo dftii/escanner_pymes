@@ -15,12 +15,17 @@ export function GradeBadge({
   grade,
   score,
   size = 'md',
+  round = false,
 }: {
   grade: Grade | null;
   score: number | null;
   size?: 'md' | 'xl';
+  /** Circular (dentro del anillo de puntuación). */
+  round?: boolean;
 }) {
-  const box = size === 'xl' ? 'size-24 text-6xl rounded-3xl' : 'size-12 text-2xl rounded-xl';
+  const box = `${size === 'xl' ? 'size-24 text-6xl' : 'size-12 text-2xl'} ${
+    round ? 'rounded-full' : size === 'xl' ? 'rounded-3xl' : 'rounded-xl'
+  }`;
   if (!grade) {
     return (
       <span
@@ -79,6 +84,54 @@ export function StatusBadge({ status }: { status: FindingStatus }) {
     >
       <span aria-hidden="true">{s.icon}</span>
       {s.label}
+    </span>
+  );
+}
+
+/** Color del anillo según la nota (mismo tono que la insignia). */
+const RING_STYLES: Record<Grade, string> = {
+  A: 'text-emerald-600',
+  B: 'text-lime-600',
+  C: 'text-amber-600',
+  D: 'text-orange-600',
+  E: 'text-red-600',
+  F: 'text-red-800',
+};
+
+/** Insignia grande con un anillo que se rellena hasta la puntuación. */
+export function ScoreRing({ grade, score }: { grade: Grade | null; score: number | null }) {
+  const fraction = Math.max(0, Math.min(100, score ?? 0)) / 100;
+  return (
+    <span className="relative inline-flex shrink-0 p-2">
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 112 112"
+        className={`absolute inset-0 size-full -rotate-90 print:hidden ${grade ? RING_STYLES[grade] : 'text-slate-400'}`}
+      >
+        <circle
+          cx="56"
+          cy="56"
+          r="53"
+          fill="none"
+          strokeWidth="4"
+          className="stroke-slate-200 dark:stroke-slate-800"
+        />
+        {grade && (
+          <circle
+            className="score-ring"
+            cx="56"
+            cy="56"
+            r="53"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="4"
+            strokeLinecap="round"
+            pathLength={1}
+            strokeDashoffset={1 - fraction}
+          />
+        )}
+      </svg>
+      <GradeBadge grade={grade} score={score} size="xl" round />
     </span>
   );
 }
