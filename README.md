@@ -136,7 +136,7 @@ Por defecto la web sigue al sistema (`prefers-color-scheme`) y cambia sola si el
 - La elección se guarda solo en `localStorage` (`escaner-pymes:tema`), sin cookies. Si coincide con el tema del sistema, se borra y se vuelve a seguir al sistema.
 - El modo oscuro de Tailwind depende de `data-theme` en `<html>` (`@custom-variant dark` en `globals.css`). Un script mínimo en el `<head>`, con el nonce de la CSP (`src/lib/theme.ts`), lo pone antes de pintar: sin parpadeo. El icono lo decide el CSS, así que es correcto desde el primer pintado.
 - Al imprimir o guardar el PDF se usa siempre el tema claro.
-- El cambio de tema usa View Transitions: el tema nuevo se revela en círculo desde el botón, encima de una imagen fija del anterior (los textos nunca desaparecen). Al navegar entre páginas (idioma, glosario, legales) hay un fundido corto en lugar de un recargado brusco, y las animaciones de entrada solo se ven al llegar a la web desde fuera (`no-intro`, según `document.referrer`, sin guardar nada).
+- El cambio de tema usa View Transitions: el tema nuevo se revela en círculo desde el botón, encima de una imagen fija del anterior (los textos nunca desaparecen). Con movimiento reducido (p. ej. Windows con «Efectos de animación» desactivados) es un fundido sin desplazamientos, y en navegadores sin View Transitions, un fundido con una capa del color anterior. Al navegar entre páginas (idioma, glosario, legales) hay un fundido corto en lugar de un recargado brusco, y las animaciones de entrada solo se ven al llegar a la web desde fuera (`no-intro`, según `document.referrer`, sin guardar nada).
 
 ## Idiomas
 

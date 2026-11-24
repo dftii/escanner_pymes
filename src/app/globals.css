@@ -376,7 +376,9 @@ html.theme-vt::view-transition-new(root) {
 
 /*
  * Al pasar de una página a otra (idioma, glosario, legales): fundido suave en
- * lugar de recargar a golpe, en los navegadores que lo admiten.
+ * lugar de recargar a golpe, en los navegadores que lo admiten. Con
+ * movimiento reducido el cambio de tema también usa un fundido (sin
+ * desplazamientos), que es el comportamiento por defecto de View Transitions.
  */
 @media (prefers-reduced-motion: no-preference) {
   @view-transition {

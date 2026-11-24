@@ -8,6 +8,31 @@ const systemDark = () => window.matchMedia('(prefers-color-scheme: dark)').match
 const currentTheme = () => document.documentElement.dataset.theme === 'dark';
 
 /**
+ * Fundido de respaldo: una capa con el fondo actual tapa la página, se cambia
+ * el tema por debajo y la capa se desvanece.
+ */
+function fadeWithOverlay(apply: () => void) {
+  const overlay = document.createElement('div');
+  overlay.setAttribute('aria-hidden', 'true');
+  Object.assign(overlay.style, {
+    position: 'fixed',
+    inset: '0',
+    zIndex: '2147483647',
+    pointerEvents: 'none',
+    background: getComputedStyle(document.body).backgroundColor,
+    transition: 'opacity 300ms ease',
+  });
+  document.body.appendChild(overlay);
+  apply();
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() => {
+      overlay.style.opacity = '0';
+    }),
+  );
+  window.setTimeout(() => overlay.remove(), 400);
+}
+
+/**
  * Botón de sol y luna para cambiar entre modo claro y oscuro.
  *
  * Por defecto la web sigue al sistema. Al pulsar se fija el otro tema y se
@@ -72,8 +97,14 @@ export function ThemeToggle() {
     }
 
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (reduced || typeof document.startViewTransition !== 'function') {
-      apply();
+    if (typeof document.startViewTransition !== 'function') {
+      // Navegadores sin View Transitions: fundido con una capa del color anterior.
+      fadeWithOverlay(apply);
+      return;
+    }
+    if (reduced) {
+      // Movimiento reducido: sin círculo, solo un fundido suave (sin desplazamientos).
+      document.startViewTransition(apply);
       return;
     }
     // El tema nuevo se revela en círculo desde el botón.
