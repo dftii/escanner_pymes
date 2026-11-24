@@ -9,6 +9,7 @@ import {
   isHeadlessEnabled,
   type BrowserRunner,
 } from './checks/browserCookies';
+import { mixedContentFinding } from './checks/mixedContent';
 import { checkPrivacy, parseSetCookie, PRIVACY_DISCLAIMER } from './checks/privacy';
 import { checkSsl, type SslDeps } from './checks/ssl';
 import { errorFinding } from './findings';
@@ -88,9 +89,15 @@ export async function runScan(
   pages.catch(() => {});
 
   const tasks: Record<Category, Promise<Finding[]>> = {
-    ssl: guard('ssl.certificate', 'ssl', () =>
-      checkSsl(domain, { fetch: fetcher, probe: deps.probe, now: deps.now }),
-    ),
+    ssl: Promise.all([
+      guard('ssl.certificate', 'ssl', () =>
+        checkSsl(domain, { fetch: fetcher, probe: deps.probe, now: deps.now }),
+      ),
+      guard('ssl.mixed_content', 'ssl', async () => {
+        const finding = mixedContentFinding(await pages);
+        return finding ? [finding] : [];
+      }),
+    ]).then((parts) => parts.flat()),
     headers: guard('headers.fetch', 'headers', async () => checkHeaders(await home)),
     email: Promise.all([
       guard('email.dns', 'email', () => checkEmailDns(domain, deps.dns)),

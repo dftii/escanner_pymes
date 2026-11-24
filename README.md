@@ -151,15 +151,16 @@ Cada hallazgo tiene `id`, `category`, `status` (`ok`, `warning`, `fail`, `info`,
 
 **Certificado SSL** (`src/lib/checks/ssl.ts`)
 
-| id             | Qué revisa                                                                                                       |
-| -------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `ssl.no_https` | La web no acepta conexiones seguras                                                                              |
-| `ssl.trust`    | Certificado de confianza (o `ssl.untrusted` / `ssl.chain` si no lo es)                                           |
-| `ssl.expiry`   | Días hasta la caducidad: fallo si quedan 7 o menos, aviso si quedan 21 o menos                                   |
-| `ssl.hostname` | El certificado incluye el dominio                                                                                |
-| `ssl.www`      | La versión con o sin `www` también tiene un certificado válido (solo en el dominio principal, no en subdominios) |
-| `ssl.protocol` | TLS 1.2 o 1.3 (fallo con TLS 1.0/1.1)                                                                            |
-| `ssl.redirect` | `http://` lleva a `https://`                                                                                     |
+| id                  | Qué revisa                                                                                                                                                                                                      |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ssl.no_https`      | La web no acepta conexiones seguras                                                                                                                                                                             |
+| `ssl.trust`         | Certificado de confianza (o `ssl.untrusted` / `ssl.chain` si no lo es)                                                                                                                                          |
+| `ssl.expiry`        | Días hasta la caducidad: fallo si quedan 7 o menos, aviso si quedan 21 o menos                                                                                                                                  |
+| `ssl.hostname`      | El certificado incluye el dominio                                                                                                                                                                               |
+| `ssl.www`           | La versión con o sin `www` también tiene un certificado válido (solo en el dominio principal, no en subdominios)                                                                                                |
+| `ssl.mixed_content` | Recursos por `http://` en las páginas `https` revisadas: scripts, estilos e iframes (fallo, el navegador los bloquea) o imágenes y vídeo (aviso). Se da por bueno si la página pide `upgrade-insecure-requests` |
+| `ssl.protocol`      | TLS 1.2 o 1.3 (fallo con TLS 1.0/1.1)                                                                                                                                                                           |
+| `ssl.redirect`      | `http://` lleva a `https://`                                                                                                                                                                                    |
 
 **Cabeceras de seguridad** (`src/lib/checks/headers.ts`): HSTS (con un mínimo de 6 meses), CSP (avisa si permite `'unsafe-inline'` sin nonce), `X-Content-Type-Options`, protección frente a incrustación (`X-Frame-Options` o `frame-ancestors`), `Referrer-Policy`, `Permissions-Policy` y cabeceras que revelan versiones (`Server`, `X-Powered-By`…).
 

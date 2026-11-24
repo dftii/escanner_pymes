@@ -37,6 +37,12 @@ export const REMEDIATION = {
     'Pide a tu hosting que desactive TLS 1.0 y 1.1 y deje solo TLS 1.2 y 1.3.',
     'En Plesk: "Herramientas y configuración" → "Configuración de SSL/TLS". En servidores propios, ajusta "ssl_protocols" (nginx) o "SSLProtocol" (Apache).',
   ],
+  'ssl.mixed_content': [
+    'Cambia "http://" por "https://" en esas direcciones (casi todos los servicios ya funcionan con https).',
+    'WordPress: el plugin "Better Search Replace" cambia de golpe las URLs antiguas en la base de datos; revisa también el tema y los widgets.',
+    'Si un recurso solo existe por http, descárgalo y súbelo a tu propia web, o busca una alternativa.',
+    'Como red de seguridad, añade la cabecera "Content-Security-Policy: upgrade-insecure-requests".',
+  ],
   'ssl.redirect': [
     'Haz que tu web lleve siempre a la versión segura (https).',
     'WordPress: en "Ajustes" → "Generales" pon las dos direcciones con https:// y activa un plugin como "Really Simple SSL".',

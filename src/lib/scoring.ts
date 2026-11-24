@@ -53,6 +53,7 @@ export const FINDING_WEIGHTS: Record<string, number> = {
   'ssl.redirect': 2,
   'ssl.protocol': 2,
   'ssl.www': 1,
+  'ssl.mixed_content': 2,
   'headers.hsts': 2,
   'headers.csp': 1,
   'headers.xcto': 1,
